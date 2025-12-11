@@ -9,15 +9,24 @@ endif()
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(std_msgs REQUIRED)
+find_package(PCL REQUIRED)
+find_package(sensor_msgs REQUIRED)
 
-add_executable(trajectory_generation src/Astrar_searcher.cpp)
+add_executable(trajectory_generation src/Astrar_searcher.cpp
+        src/GridMap.cpp
+)
 
 ament_target_dependencies(trajectory_generation
         std_msgs
+        sensor_msgs
+        PCL
+        rclcpp
+
 )
 target_include_directories(trajectory_generation
         PRIVATE
         include
+        utils
 )
 
 
