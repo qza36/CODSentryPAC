@@ -1,9 +1,13 @@
 #ifndef _GRIDNODE_
 #define _GRIDNODE_
+#include <boost/type.hpp>
+
 #include "Eigen/Eigen"
 #define inf 1>>20
 struct GridNode;
 typedef GridNode* GridNodePtr;
+struct OccupancyNode;
+typedef OccupancyNode* OccupancyNodePtr;
 struct GridNode
 {
     int id;        // 1--> open set, -1 --> closed set
@@ -13,7 +17,7 @@ struct GridNode
 
     double gScore, fScore;
     GridNodePtr cameFrom; //父节点
-    std::multimap<double, GridNodePtr>::iterator nodeMapIt;
+    std::multimap<double, GridNodePtr>::iterator nodeMapIt; //用来记录自己在OPENLIST中的位置
 
     GridNode(Eigen::Vector3i _index, Eigen::Vector3d _coord){
         id = 0;
@@ -28,5 +32,24 @@ struct GridNode
 
     GridNode(){};
     ~GridNode(){};
+};
+struct OccupancyNode //障碍物节点
+{
+   Eigen::Vector3i index;
+    bool unknow;
+    bool occ;
+    int count;
+    int m_raycast_num;
+
+    OccupancyNode(Eigen::Vector3i _index,bool _unknow)
+    {
+        index = _index;
+        unknow = _unknow;
+        occ = false;
+        count = 0;
+        m_raycast_num = 0;
+    }
+    OccupancyNode(){};
+    ~OccupancyNode(){};
 };
 #endif
