@@ -11,9 +11,11 @@ find_package(rclcpp REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(PCL REQUIRED)
 find_package(sensor_msgs REQUIRED)
+find_package(OpenCV REQUIRED)
 
 add_executable(trajectory_generation src/Astrar_searcher.cpp
         src/GridMap.cpp
+        src/planner_config.cpp
 )
 
 ament_target_dependencies(trajectory_generation
@@ -21,12 +23,16 @@ ament_target_dependencies(trajectory_generation
         sensor_msgs
         PCL
         rclcpp
+        OpenCV
 
 )
 target_include_directories(trajectory_generation
         PRIVATE
         include
         utils
+)
+target_link_libraries(trajectory_generation
+        ${OpenCV_LIBRARIES}
 )
 
 

@@ -6,6 +6,8 @@
 #include "pcl_conversions/pcl_conversions.h"
 #include "rclcpp/rclcpp.hpp"
 #include "getparm_utils.hpp"
+#include "planner_config.hpp"
+
 class GlobalMap
 {
 public:
@@ -14,13 +16,13 @@ public:
         m_local_cloud=std::make_shared<pcl::PointCloud<pcl::PointXYZ>>(); //智能指针初始化
 
     }
-    uint8_t *data;
-    uint8_t *l_data;
-
-    int GLX_SIZE,GLY_SIZE,GLZ_SIZE; //地图尺寸
-    int GLXYZ_SIZE,GLYZ_SIZE,GLXY_SIZE;
-    double m_resolution,m_inv_resolution; //分辨率
-
+    std::vector<uint8_t> *data; // data存放地图的障碍物信息（data[i]为1说明i这个栅格是障碍物栅格）
+    std::vector<uint8_t> *l_data; // l_data存放局部地图的障碍物信息（l_data[i]为1说明i这个栅格是障碍物栅格）只用于判断地图对应高度的局部占用情况
+    Eigen::Vector3i m_grid_size; //GLX_SIZE GLY_SIZE GLZ_SIZE,A*搜索范围
+    int m_z_stride; //GLXY_SIZE z轴上的步长
+    int m_y_stride; //GLX_SZIE y轴上的步长
+    size_t m_voxel_num; //GLXYZ_SIZE 搜索范围内的grid数量
+    double m_resolution,m_inv_resolution; //分辨率 一个grid代表物理世界中多长的距离
     GridNodePtr **GridNodeMap;
     GridNodePtr **GridNodeLocalMap;  //local
 
@@ -35,10 +37,23 @@ public:
     std::vector<Eigen::Vector3d> second_heights_points; //处理桥洞高度
     void initGridMap(
         rclcpp::Node::SharedPtr node,
-        Eigen::Vector3d global_xyz_l,
-        Eigen::Vector3d global_xyz_u);
+        const planner_manger::PlannerConfig& config
+        );
 private:
-    double gl_xl, gl_yl, gl_zl;	//lower		   // 地图的左下角坐标
-    double gl_xu, gl_yu, gl_zu;	//upper		   // 地图的右上角坐标
+    rclcpp::Node::SharedPtr m_node;
+    Eigen::Vector3d m_gl_l;
+    Eigen::Vector3d m_gl_u;
+
+
+    double m_height_bias;
+    double m_height_interval;
+    double m_height_threshold;
+    double m_height_sencond_high_threshold;
+    double m_2d_search_height_low;	// 2维规划障碍物搜索高度最低点
+    double m_2d_search_height_high; // 2维规划障碍物搜索高度最高点
+
+    double m_robot_radius;			// 机器人的碰撞检测直径 建议<0.38
+    double m_robot_radius_dash;		// 机器人的动态障碍物冲卡检测直径 建议<0.25
+    double m_search_radius;
 };
 #endif
