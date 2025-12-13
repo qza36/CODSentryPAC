@@ -7,14 +7,17 @@
 #include "rclcpp/rclcpp.hpp"
 #include "getparm_utils.hpp"
 #include "planner_config.hpp"
-
+#include "nav_msgs/msg/odometry.hpp"
+#include "sensor_msgs/msg/point_cloud2.hpp"
+#include "gazebo_msgs/msg/model_states.hpp"
 class GlobalMap
 {
 public:
     GlobalMap()
     {
         m_local_cloud=std::make_shared<pcl::PointCloud<pcl::PointXYZ>>(); //智能指针初始化
-
+        data = new std::vector<uint8_t>();
+        l_data = new std::vector<uint8_t>();
     }
     std::vector<uint8_t> *data; // data存放地图的障碍物信息（data[i]为1说明i这个栅格是障碍物栅格）
     std::vector<uint8_t> *l_data; // l_data存放局部地图的障碍物信息（l_data[i]为1说明i这个栅格是障碍物栅格）只用于判断地图对应高度的局部占用情况
@@ -55,5 +58,13 @@ private:
     double m_robot_radius;			// 机器人的碰撞检测直径 建议<0.38
     double m_robot_radius_dash;		// 机器人的动态障碍物冲卡检测直径 建议<0.25
     double m_search_radius;
+
+    rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr m_odometry_sub;
+    rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr m_local_pointcloud_sub;
+    rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr gazebo_point_sub;
+    rclcpp::Subscription<gazebo_msgs::msg::ModelStates>::SharedPtr gazebo_odometry_sub;
+
+    // 【变化 2】使用 rclcpp::Publisher<消息类型>::SharedPtr
+    rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr global_map_pub;
 };
 #endif

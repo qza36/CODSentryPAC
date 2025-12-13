@@ -1,8 +1,7 @@
 #ifndef PLANNER_CONFIG_HPP
 #define PLANNER_CONFIG_HPP
 #include <rclcpp/rclcpp.hpp>
-#include "trajectory_generation/GridMap.hpp"
-
+#include  "Eigen/Core"
 namespace planner_manger
 {
     struct PlannerConfig
@@ -12,6 +11,7 @@ namespace planner_manger
         {
             std::string occ_map_path;
             std::string bev_map_path;
+            std::string distance_map_path;
             double height_bias;
             double height_interval;
             double height_threshold;
@@ -31,8 +31,6 @@ namespace planner_manger
             double robot_radius_dash;
         }search;
     };
-    inline std::shared_ptr<GlobalMap> global_map;
-    void init(rclcpp::Node::SharedPtr node);
 }
 #endif
 
