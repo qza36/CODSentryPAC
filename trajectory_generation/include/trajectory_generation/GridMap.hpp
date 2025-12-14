@@ -3,9 +3,10 @@
 
 #include "trajectory_generation/GridNode.hpp"
 #include <memory>
+
+#include "MapData.hpp"
 #include "pcl_conversions/pcl_conversions.h"
 #include "rclcpp/rclcpp.hpp"
-#include "getparm_utils.hpp"
 #include "planner_config.hpp"
 #include "nav_msgs/msg/odometry.hpp"
 #include "sensor_msgs/msg/point_cloud2.hpp"
@@ -16,12 +17,13 @@ public:
     GlobalMap()
     {
         m_local_cloud=std::make_shared<pcl::PointCloud<pcl::PointXYZ>>(); //智能指针初始化
-        data = new std::vector<uint8_t>();
-        l_data = new std::vector<uint8_t>();
     }
-    std::vector<uint8_t> *data; // data存放地图的障碍物信息（data[i]为1说明i这个栅格是障碍物栅格）
-    std::vector<uint8_t> *l_data; // l_data存放局部地图的障碍物信息（l_data[i]为1说明i这个栅格是障碍物栅格）只用于判断地图对应高度的局部占用情况
-    Eigen::Vector3i m_grid_size; //GLX_SIZE GLY_SIZE GLZ_SIZE,A*搜索范围
+    std::vector<uint8_t> data; // data存放地图的障碍物信息（data[i]为1说明i这个栅格是障碍物栅格）
+    std::vector<uint8_t> l_data; // l_data存放局部地图的障碍物信息（l_data[i]为1说明i这个栅格是障碍物栅格）只用于判断地图对应高度的局部占用情况
+    std::vector<GridNode> m_grid_node_pool; //节点池
+    std::vector<GridNode> m_grid_node_pool_local; //节点池
+
+    Eigen::Vector3i m_grid_size; //GLX_SIZE GLY_SIZE GLZ_SIZE,A*拓展节点范围
     int m_z_stride; //GLXY_SIZE z轴上的步长
     int m_y_stride; //GLX_SZIE y轴上的步长
     size_t m_voxel_num; //GLXYZ_SIZE 搜索范围内的grid数量
@@ -42,6 +44,7 @@ public:
         rclcpp::Node::SharedPtr node,
         const planner_manger::PlannerConfig& config
         );
+    void occMap2Obs(const map_utils::MapData &map);
 private:
     rclcpp::Node::SharedPtr m_node;
     Eigen::Vector3d m_gl_l;
@@ -62,9 +65,13 @@ private:
     rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr m_odometry_sub;
     rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr m_local_pointcloud_sub;
     rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr gazebo_point_sub;
-    rclcpp::Subscription<gazebo_msgs::msg::ModelStates>::SharedPtr gazebo_odometry_sub;
+    rclcpp::Subscription<gazebo_msgs::msg::ModelStates>::SharedPtr m_gazebo_odometry_sub;
 
-    // 【变化 2】使用 rclcpp::Publisher<消息类型>::SharedPtr
     rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr global_map_pub;
+    void gazeboPoseCallback(const gazebo_msgs::msg::ModelStates &state);
+    void gazeboCloudCallback(const sensor_msgs::msg::PointCloud2 &pointcloud2);
+    Eigen::Vector3d gridIndex2coord(const Eigen::Vector3i &index);
+    Eigen::Vector3i coord2girdIndex(const Eigen::Vector3d &coord);
+    void setObs(const double coord_x,const double coord_y);
 };
 #endif

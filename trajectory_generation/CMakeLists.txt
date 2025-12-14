@@ -15,10 +15,13 @@ find_package(OpenCV REQUIRED)
 find_package(nav_msgs REQUIRED)
 find_package(gazebo_msgs REQUIRED)
 find_package(sensor_msgs REQUIRED)
+find_package(pcl_conversions REQUIRED)
 
 add_executable(trajectory_generation src/Astrar_searcher.cpp
         src/GridMap.cpp
         src/planner_config.cpp
+        src/MapLoader.cpp
+        include/trajectory_generation/MapLoader.hpp
 )
 
 ament_target_dependencies(trajectory_generation
@@ -29,8 +32,7 @@ ament_target_dependencies(trajectory_generation
         OpenCV
         nav_msgs
         gazebo_msgs
-        sensor_msgs
-
+        pcl_conversions
 )
 target_include_directories(trajectory_generation
         PRIVATE
