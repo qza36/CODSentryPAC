@@ -1,4 +1,7 @@
 #include "trajectory_generation/GridMap.hpp"
+
+#include <ros/ros.h>
+
 #include "getparm_utils.hpp"
 #include "trajectory_generation/planner_config.hpp"
 #include "trajectory_generation/MapLoader.hpp"
@@ -33,7 +36,7 @@ void GlobalMap::initGridMap(
     m_robot_radius_dash=config.search.robot_radius_dash;
 
 
-    auto occ_map = MapLoader::loadOccMapData(config.map.occ_map_path);
+    auto occ_map = MapLoader::loadAndSwellOccMapData(config.map.occ_map_path,m_robot_radius,m_resolution);
     auto topo_map = MapLoader::loadTopoMapData(config.map.distance_map_path);
 
     m_gazebo_odometry_sub = m_node->create_subscription<gazebo_msgs::msg::ModelStates>(
@@ -66,7 +69,9 @@ void GlobalMap::initGridMap(
             m_grid_node_pool_local[idx] = GridNode(tmpIdx_local,pos_local);
         }
     }
-
+    occMap2Obs(occ_map);
+    topoSampleMap(topo_map);
+    m_local_cloud.reset(new pcl::PointCloud<pcl::PointXYZ>);
 }
 
 Eigen::Vector3d GlobalMap::gridIndex2coord(const Eigen::Vector3i &index) {
@@ -82,7 +87,6 @@ Eigen::Vector3i GlobalMap::coord2girdIndex(const Eigen::Vector3d &pt) {
     idx << std::min(std::max(int((pt(0) - m_gl_l(0)) * m_inv_resolution), 0), m_grid_size(0) - 1),
             std::min(std::max(int((pt(1) - m_gl_l(1)) * m_inv_resolution), 0), m_grid_size(1) - 1),
             std::min(std::max(int((pt(2) - m_gl_l(2)) * m_inv_resolution), 0), m_grid_size(2) - 1);
-
     return idx;
 }
 
@@ -112,4 +116,68 @@ void GlobalMap::occMap2Obs(const map_utils::MapData &map) {
             }
         }
     }
+}
+void GlobalMap::topoSampleMap(const map_utils::MapData &map) {
+   RCLCPP_INFO(m_node->get_logger(),"start topo sample map");
+    std::vector<uint8_t> working_pixels = map.pixels;
+    int rows= map.height;
+    int cols = map.width;
+    topo_keypoint.clear();
+    topo_sample_map.clear();
+    Eigen::Vector3d topoMapTemp;
+    for(int i =0; i< map.height;i++) {
+        for (int j=0;j<map.width;j++) {
+            int curr_idx = i*map.width+j;
+            if (working_pixels[curr_idx]> 10) {
+                topoMapTemp.x() = (j+0.5) * m_resolution;
+                topoMapTemp.y() = (rows-i-0.5) * m_resolution;
+                int pt_idx,pt_idy,pt_idz;
+                double ptz =0.0;
+                coord2gridIndex(topoMapTemp.x(),topoMapTemp.y(),ptz,pt_idx,pt_idy,pt_idz);
+
+                topoMapTemp.z()=getHeight(pt_idx,pt_idy);
+                int keypoint_count = 0;
+                for(int idx = -1; idx <= 1; idx++){
+                    for(int idy = -1; idy <= 1; idy++){
+                        int r = i + idx;
+                        int c = j + idy;
+                        if (r >= 0 && r < rows && c >= 0 && c < cols) {
+                            int neighbor_idx = r * cols + c;
+                            if(working_pixels[neighbor_idx] > 100){
+                                keypoint_count++;
+                            }
+                        }
+                    }
+                }
+                if(keypoint_count > 3){ // 多路径交汇点作为topo的关键点必进入topo search中
+                    topo_keypoint.push_back(topoMapTemp);
+                    for(int idx = -1; idx <= 1; idx++){
+                        for(int idy = -1; idy <= 1; idy++){
+                            int r = i + idx;
+                            int c = j + idy;
+                            if (r >= 0 && r < rows && c >= 0 && c < cols) {
+                                working_pixels[r * cols + c] = 0;
+                            }
+                        }
+                    }
+                }
+                else if(keypoint_count == 3){
+                    topo_sample_map.push_back(topoMapTemp);
+                }
+            }
+        }
+    }
+    RCLCPP_INFO(m_node->get_logger(), "[GlobalMap] Topo sample done. Samples: %zu, Keypoints: %zu",
+        topo_sample_map.size(), topo_keypoint.size());
+}
+void GlobalMap::coord2gridIndex(double &pt_x, double &pt_y, double &pt_z, int &x_idx, int &y_idx, int &z_idx) {
+    x_idx = std::min(std::max(int((pt_x - m_gl_l(0)) * m_inv_resolution), 0), m_grid_size(0)- 1);
+    y_idx = std::min(std::max(int((pt_y - m_gl_l(1)) * m_inv_resolution), 0), m_grid_size(1) - 1);
+    z_idx = std::min(std::max(int((pt_z - m_gl_l(2)) * m_inv_resolution), 0), m_grid_size(22)- 1);
+}
+
+double GlobalMap::getHeight(int idx_x, int idx_y) {
+    if (idx_x > m_grid_size(0) || idx_y > m_grid_size(1))
+        return 0.0;
+    return GridNodeMap[idx_x][idx_y]->height;
 }

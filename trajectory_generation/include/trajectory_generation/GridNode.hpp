@@ -11,6 +11,7 @@ typedef OccupancyNode* OccupancyNodePtr;
 struct GridNode
 {
     int id;        // 1--> open set, -1 --> closed set
+    double height;
     Eigen::Vector3d coord; //坐标x,y
     Eigen::Vector3i dir;   // direction of expanding
     Eigen::Vector3i index; //索引

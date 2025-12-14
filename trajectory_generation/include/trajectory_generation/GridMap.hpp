@@ -45,6 +45,9 @@ public:
         const planner_manger::PlannerConfig& config
         );
     void occMap2Obs(const map_utils::MapData &map);
+    void topoSampleMap(const map_utils::MapData &map);
+
+    double getHeight(int idx_x, int idx_y);
 private:
     rclcpp::Node::SharedPtr m_node;
     Eigen::Vector3d m_gl_l;
@@ -72,6 +75,7 @@ private:
     void gazeboCloudCallback(const sensor_msgs::msg::PointCloud2 &pointcloud2);
     Eigen::Vector3d gridIndex2coord(const Eigen::Vector3i &index);
     Eigen::Vector3i coord2girdIndex(const Eigen::Vector3d &coord);
+    void coord2gridIndex(double &pt_x, double &pt_y, double &pt_z, int &x_idx, int &y_idx, int &z_idx);
     void setObs(const double coord_x,const double coord_y);
 };
 #endif
