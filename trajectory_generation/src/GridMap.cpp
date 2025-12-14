@@ -31,9 +31,11 @@ void GlobalMap::initGridMap(
     m_robot_radius=config.search.robot_radius;
     m_robot_radius_dash=config.search.robot_radius_dash;
 
-    cv::Mat occ_map3c;
-    occ_map3c = cv::imread(config.map.occ_map_path);
-    std::vector <cv::Mat> channels;
-    cv::split(occ_map3c,channels);
-    cv::Mat occ_map = channels.at(0);
+
+    cv::Mat occ_map;
+    cv::Mat topo_map;
+    occ_map = cv::imread(config.map.occ_map_path,cv::IMREAD_GRAYSCALE); //直接以灰度图像读取
+    topo_map= cv::imread(config.map.distance_map_path,cv::IMREAD_GRAYSCALE); //直接以灰度图像读取
+
+
 }

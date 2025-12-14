@@ -1,6 +1,11 @@
 #include "trajectory_generation/planner_config.hpp"
 #include "getparm_utils.hpp"
-#include "trajectory_generation/GridMap.hpp"
+#include "trajectory_generation/plannerManger.hpp"
+
+namespace planner_manger {
+    std::shared_ptr<GlobalMap> global_map;
+}
+
 void planner_manger::init(rclcpp::Node::SharedPtr node)
 {
    PlannerConfig config;
@@ -23,8 +28,9 @@ void planner_manger::init(rclcpp::Node::SharedPtr node)
    apex_utils::get_param(node, "trajectory_generator.grid_max_id_z", config.map.map_grid_size(2), 0);
    apex_utils::get_param(node, "trajectory_generator.resolution", config.map.map_resolution, 0.0);
    //map_file_path
-   apex_utils::get_param<std::string>(node,"trajectory_generator.occ_map_path",config.map.occ_map_path,"/path");
+   apex_utils::get_param<std::string>(node,"trajectory_generator.occ_map_path",config.map.occ_map_path,"/home/cod-sentry/qza_ws/cod_planning/src/trajectory_generation/map/occ2024.png");
    apex_utils::get_param<std::string>(node,"trajectory_generator.bev_map_path",config.map.bev_map_path,"/path");
+   apex_utils::get_param<std::string>(node,"trajectory_generator.distance_map_path",config.map.distance_map_path,"/path");
 
 
    //search
@@ -33,7 +39,6 @@ void planner_manger::init(rclcpp::Node::SharedPtr node)
    apex_utils::get_param(node,"trajectory_generator.search_radius",config.search.search_radius,0.2);
    apex_utils::get_param(node,"trajectory_generator.robot_radius",config.search.robot_radius,0.3);
    apex_utils::get_param(node,"trajectory_generator.robot_radius_dash",config.search.robot_radius_dash,0.3);
-
-   global_map.reset(new GlobalMap);
+   global_map = std::make_shared<GlobalMap>();
    global_map->initGridMap(node,config);
 }
