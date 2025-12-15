@@ -20,8 +20,6 @@ find_package(pcl_conversions REQUIRED)
 add_executable(trajectory_generation src/Astrar_searcher.cpp
         src/GridMap.cpp
         src/planner_config.cpp
-        src/MapLoader.cpp
-        include/trajectory_generation/MapLoader.hpp
 )
 
 ament_target_dependencies(trajectory_generation

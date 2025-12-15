@@ -25,7 +25,7 @@ public:
 
     pcl::PointCloud<pcl::PointXYZ>::Ptr m_local_cloud;
     Eigen::Vector3d odom_position; //位姿
-    Eigen::Vector3d odom_poseture; //什么用？
+    Eigen::Vector3d odom_posture; //什么用？
 
     bool m_local_update; //局部地图是否已经被规划
     std::vector<Eigen::Vector3d> topo_sample_map; //拓扑采样后的骨架？
@@ -67,7 +67,7 @@ private:
     rclcpp::Subscription<gazebo_msgs::msg::ModelStates>::SharedPtr m_gazebo_odometry_sub;
 
     rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr global_map_pub;
-    void gazeboPoseCallback(const gazebo_msgs::msg::ModelStates &state);
+    void gazeboPoseCallback(const gazebo_msgs::msg::ModelStates::ConstSharedPtr &state);
     void gazeboCloudCallback(const sensor_msgs::msg::PointCloud2 &pointcloud2);
     void setObs(const double coord_x,const double coord_y);
 };

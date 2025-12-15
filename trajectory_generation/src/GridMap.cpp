@@ -188,3 +188,43 @@ double GlobalMap::getHeight(int idx_x, int idx_y) {
         return 0.0;
     return GridNodeMap[idx_x][idx_y]->height;
 }
+
+void GlobalMap::gazeboPoseCallback(const gazebo_msgs::msg::ModelStates::ConstSharedPtr &state) {
+    int robot_namespace_id = 0;
+    for(int i = 0;i < state->name.size();i++){
+        if(state->name[i] == "mbot"){
+            robot_namespace_id = i;
+            break;
+        }
+    }
+    odom_position(0) = state->pose[robot_namespace_id].position.x;
+    odom_position(1) = state->pose[robot_namespace_id].position.y;
+    odom_position(2) = state->pose[robot_namespace_id].position.z;
+
+    /*获得四元数*/
+    double x = state->pose[robot_namespace_id].orientation.x;
+    double y = state->pose[robot_namespace_id].orientation.y;
+    double z = state->pose[robot_namespace_id].orientation.z;
+    double w = state->pose[robot_namespace_id].orientation.w;
+    double siny_cosp = +2.0 * (w * z + x * y);
+    double cosy_cosp = +1.0 - 2.0 * (y * y + z * z);
+
+    odom_posture(2) = atan2f(siny_cosp, cosy_cosp);
+    odom_posture(1) = asin(2 * (w * y - x * z));
+    odom_posture(0) = atan2(2 * (w * x + y * z), 1 - 2 * (x * x + y * y));
+}
+
+cv::Mat GlobalMap::swellOccMap(cv::Mat occ_map) {
+    cv::Mat occ = cv::Mat::zeros(occ_map.rows, occ_map.cols, CV_8UC1);
+    int swell_num = (int) (m_robot_radius / m_resolution);
+    for (int i = 0; i < occ_map.rows; i++) {
+        for (int j = 0; j < occ_map.cols; j++) {
+            if (occ_map.at<uchar>(i, j) > 10)
+            {   // 膨胀直接画圆
+                cv::circle(occ, cv::Point(j, i), swell_num, cv::Scalar(255, 255, 255), -1);
+            }
+        }
+    }
+    RCLCPP_INFO(m_node->get_logger(),"map swell done");
+    return occ;
+}
