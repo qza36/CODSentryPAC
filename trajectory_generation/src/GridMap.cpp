@@ -1,10 +1,6 @@
 #include "trajectory_generation/GridMap.hpp"
-
-#include <ros/ros.h>
-
 #include "getparm_utils.hpp"
 #include "trajectory_generation/planner_config.hpp"
-#include "trajectory_generation/MapLoader.hpp"
 
 void GlobalMap::initGridMap(
     rclcpp::Node::SharedPtr node,
@@ -15,19 +11,27 @@ void GlobalMap::initGridMap(
     m_height_bias = config.map.height_bias;
 
     //获取地图边界
-    m_gl_l = config.map.map_lower_point;
-    m_gl_u = config.map.map_upper_point;
-    //获得搜索范围
-    m_grid_size = config.map.map_grid_size;
-    //搜索步长
-    m_y_stride = m_grid_size(0);
-    m_z_stride = m_grid_size(0) * m_grid_size(1);
-    m_voxel_num = (size_t)m_grid_size(0) * (size_t)m_grid_size(1) * (size_t)m_grid_size(2);
+    config.map.map_upper_point;
+    gl_xl = config.map.map_lower_point(0);
+    gl_yl = config.map.map_lower_point(1);
+    gl_zl = config.map.map_lower_point(2);
+    gl_xu = config.map.map_upper_point(0);
+    gl_yu = config.map.map_upper_point(1) ;
+    gl_zu = config.map.map_upper_point(2);
+
+    GLX_SIZE = config.map.map_grid_size(0);
+    GLY_SIZE = config.map.map_grid_size(1);
+    GLZ_SIZE = config.map.map_grid_size(2);
+    GLXY_SIZE = GLX_SIZE * GLY_SIZE;
+    GLYZ_SIZE = GLY_SIZE * GLZ_SIZE;
+    GLXYZ_SIZE = GLX_SIZE * GLYZ_SIZE;
 
     m_resolution = 1.0 /config.map.map_resolution;
     //初始化地图
-    data.resize(m_z_stride,0);
-    l_data.resize(m_z_stride,0);
+    data = new uint8_t[GLXY_SIZE];
+    l_data = new uint8_t[GLXY_SIZE];
+    memset(data, 0, GLXY_SIZE * sizeof(uint8_t));
+    memset(l_data, 0, GLXY_SIZE * sizeof(uint8_t));
     /*设置2D搜索高度*/
     m_2d_search_height_high=config.search.search_height_max;
     m_2d_search_height_low=config.search.search_height_min;
@@ -35,9 +39,11 @@ void GlobalMap::initGridMap(
     m_robot_radius=config.search.robot_radius;
     m_robot_radius_dash=config.search.robot_radius_dash;
 
+    std::string occ_map_file = config.map.occ_map_path;
+    std::string topo_map_file = config.map.topo_map_path;
+    cv::Mat occ_map = cv::imread(occ_map_file,cv::IMREAD_GRAYSCALE);
+    cv::Mat topo_map = cv::imread(topo_map_file,cv::IMREAD_GRAYSCALE);
 
-    auto occ_map = MapLoader::loadAndSwellOccMapData(config.map.occ_map_path,m_robot_radius,m_resolution);
-    auto topo_map = MapLoader::loadTopoMapData(config.map.distance_map_path);
 
     m_gazebo_odometry_sub = m_node->create_subscription<gazebo_msgs::msg::ModelStates>(
         "/gazebo/model_states",
@@ -46,29 +52,28 @@ void GlobalMap::initGridMap(
     int swell_num = (int)(m_robot_radius/m_resolution)*2;
     int GL_SIZE = swell_num + (int)(m_search_radius/m_resolution);
 
-    int x_size = m_grid_size(0);
-    int y_size = m_grid_size(1);
-    m_grid_node_pool.resize(x_size*y_size); //申请连续内存,初始化A*搜索地图
-    for (int i =0; i< x_size;i++) {
-        for (int j =0 ;j < y_size;j++) {
-            int idx = i * y_size+j;
-            Eigen::Vector3i tmpIdx(i,j,0);
+    GridNodeMap = new GridNodePtr *[GLX_SIZE];
+    for (int i = 0; i < GLX_SIZE; i++) {
+        GridNodeMap[i] = new GridNodePtr [GLY_SIZE];
+        for (int j = 0; j < GLY_SIZE; j++){
+            Eigen::Vector3i tmpIdx(i, j, 0);
             Eigen::Vector3d pos = gridIndex2coord(tmpIdx);
-            m_grid_node_pool[idx] = GridNode(tmpIdx,pos);
+            GridNodeMap[i][j] = new GridNode(tmpIdx, pos);
         }
     }
 
-    int x_size_local = m_grid_size(0);
-    int y_size_local = m_grid_size(1);
-    m_grid_node_pool_local.resize(x_size_local*y_size_local); //申请连续内存,初始化A*搜索地图
-    for (int i =0; i< x_size_local;i++) {
-        for (int j =0 ;j < y_size_local;j++) {
-            int idx = i * y_size_local+j;
-            Eigen::Vector3i tmpIdx_local(i,j,0);
-            Eigen::Vector3d pos_local = gridIndex2coord(tmpIdx_local);
-            m_grid_node_pool_local[idx] = GridNode(tmpIdx_local,pos_local);
+    GridNodeLocalMap = new GridNodePtr *[GLX_SIZE];
+    for (int i = 0; i < GLX_SIZE; i++)
+    {
+        GridNodeLocalMap[i] = new GridNodePtr[GLY_SIZE];
+        for (int j = 0; j < GLY_SIZE; j++)
+        {
+            Eigen::Vector3i tmpIdx(i, j, 0);
+            Eigen::Vector3d pos = gridIndex2coord(tmpIdx);
+            GridNodeLocalMap[i][j] = new GridNode(tmpIdx, pos);
         }
     }
+    occ_map = swellOccMap(occ_map);
     occMap2Obs(occ_map);
     topoSampleMap(topo_map);
     m_local_cloud.reset(new pcl::PointCloud<pcl::PointXYZ>);
@@ -76,108 +81,110 @@ void GlobalMap::initGridMap(
 
 Eigen::Vector3d GlobalMap::gridIndex2coord(const Eigen::Vector3i &index) {
     Eigen::Vector3d pt;
-    pt(0) = ((double)index(0)+0.5)*m_resolution+m_gl_l(0);
-    pt(1) = ((double)index(1)+0.5)*m_resolution+m_gl_l(1);
-    pt(2) = ((double)index(2)+0.5)*m_resolution+m_gl_l(2);
+
+    pt(0) = ((double)index(0) + 0.5) * m_resolution + gl_xl;
+    pt(1) = ((double)index(1) + 0.5) * m_resolution + gl_yl;
+    pt(2) = ((double)index(2) + 0.5) * m_resolution + gl_zl;
+
     return pt;
 }
 
-Eigen::Vector3i GlobalMap::coord2girdIndex(const Eigen::Vector3d &pt) {
+Eigen::Vector3i GlobalMap::coord2gridIndex(const Eigen::Vector3d &pt) {
     Eigen::Vector3i idx;
-    idx << std::min(std::max(int((pt(0) - m_gl_l(0)) * m_inv_resolution), 0), m_grid_size(0) - 1),
-            std::min(std::max(int((pt(1) - m_gl_l(1)) * m_inv_resolution), 0), m_grid_size(1) - 1),
-            std::min(std::max(int((pt(2) - m_gl_l(2)) * m_inv_resolution), 0), m_grid_size(2) - 1);
+    idx << std::min(std::max(int((pt(0) - gl_xl) * m_inv_resolution), 0), GLX_SIZE - 1),
+            std::min(std::max(int((pt(1) - gl_yl) * m_inv_resolution), 0), GLY_SIZE - 1),
+            std::min(std::max(int((pt(2) - gl_zl) * m_inv_resolution), 0), GLZ_SIZE - 1);
+
     return idx;
 }
 
 void GlobalMap::setObs(const double coord_x, const double coord_y) {
-    if (coord_x <m_gl_l(0)||coord_y<m_gl_l(1)||
-        coord_x >= m_gl_u(0)||coord_y >=m_gl_u(1)
-    ) {
+    if (coord_x < gl_xl || coord_y < gl_yl  ||
+        coord_x >= gl_xu || coord_y >= gl_yu )
         return;
-    }
-    int idx_x = static_cast<int>((coord_x - m_gl_l(0))*m_inv_resolution);
-    int idx_y = static_cast<int>((coord_y - m_gl_l(1))*m_inv_resolution);
 
-    data[idx_x*m_grid_size(1)+idx_y] = 1;
+    /* 用障碍物空间点坐标找到其所对应的栅格 */
+    int idx_x = static_cast<int>((coord_x - gl_xl) * m_inv_resolution);
+    int idx_y = static_cast<int>((coord_y - gl_yl) * m_inv_resolution);
+
+    /* 将障碍物映射为容器里值为1的元素 */
+    data[idx_x * GLY_SIZE + idx_y] = 1;
 
 }
 
-void GlobalMap::occMap2Obs(const map_utils::MapData &map) {
-    pcl::PointCloud<pcl::PointXYZ>::Ptr pt;
-    for (int i =0; i<map.height;i++) {
-        for (int j =0;j<map.width;j++) {
-            int idx = i*map.width+j;
-            uint8_t pixel_val = map.pixels[idx];
-            if (pixel_val!=0) {
-                double x = (j+0.5)*m_resolution;
-                double y = (map.height-i-0.5)*m_resolution;
-                this->setObs(x,y);
+void GlobalMap::occMap2Obs(const cv::Mat &occ_map) {
+    pcl::PointXYZ pt;
+    for (int i =0; i<occ_map.rows;i++) {
+        for (int j =0;j<occ_map.cols;j++) {
+            if (occ_map.at<uchar>(i,j)!=0) {
+                pt.x = (j+0.5) * m_resolution;
+                pt.y = (occ_map.rows - i - 0.5) * m_resolution;
+                setObs(pt.x, pt.y);
             }
         }
     }
 }
-void GlobalMap::topoSampleMap(const map_utils::MapData &map) {
-   RCLCPP_INFO(m_node->get_logger(),"start topo sample map");
-    std::vector<uint8_t> working_pixels = map.pixels;
-    int rows= map.height;
-    int cols = map.width;
-    topo_keypoint.clear();
-    topo_sample_map.clear();
+void GlobalMap::topoSampleMap(cv::Mat &topo_map) {
+    RCLCPP_INFO(m_node->get_logger(),"start topo sample map");
     Eigen::Vector3d topoMapTemp;
-    for(int i =0; i< map.height;i++) {
-        for (int j=0;j<map.width;j++) {
-            int curr_idx = i*map.width+j;
-            if (working_pixels[curr_idx]> 10) {
-                topoMapTemp.x() = (j+0.5) * m_resolution;
-                topoMapTemp.y() = (rows-i-0.5) * m_resolution;
-                int pt_idx,pt_idy,pt_idz;
-                double ptz =0.0;
-                coord2gridIndex(topoMapTemp.x(),topoMapTemp.y(),ptz,pt_idx,pt_idy,pt_idz);
+    for(int i = 0; i < topo_map.rows; i++){
+        for(int j = 0; j < topo_map.cols; j++){
+            if(topo_map.at<uchar>(i, j) > 10){
+                topoMapTemp.x() = (j + 0.5) * m_resolution;
+                topoMapTemp.y() = (topo_map.rows - i - 0.5) * m_resolution;
+                topoMapTemp.z() = 0.0;
 
-                topoMapTemp.z()=getHeight(pt_idx,pt_idy);
-                int keypoint_count = 0;
-                for(int idx = -1; idx <= 1; idx++){
-                    for(int idy = -1; idy <= 1; idy++){
-                        int r = i + idx;
-                        int c = j + idy;
-                        if (r >= 0 && r < rows && c >= 0 && c < cols) {
-                            int neighbor_idx = r * cols + c;
-                            if(working_pixels[neighbor_idx] > 100){
-                                keypoint_count++;
-                            }
+                int keypoint = 0;
+                for(int idx = -1; idx < 2; idx++){
+                    for(int idy = -1; idy < 2; idy++){
+                        if(topo_map.at<uchar>(i + idx, j + idy) > 100){
+                            keypoint ++ ;
                         }
                     }
                 }
-                if(keypoint_count > 3){ // 多路径交汇点作为topo的关键点必进入topo search中
+                if(keypoint > 3){  // 多路径交汇点作为topo的关键点必进入topo search中
+                    int pt_idx, pt_idy, pt_idz;
+                    coord2gridIndex(topoMapTemp.x(), topoMapTemp.y(), topoMapTemp.z(), pt_idx, pt_idy, pt_idz);
+                    topoMapTemp.z() = getHeight(pt_idx, pt_idy);
                     topo_keypoint.push_back(topoMapTemp);
-                    for(int idx = -1; idx <= 1; idx++){
-                        for(int idy = -1; idy <= 1; idy++){
-                            int r = i + idx;
-                            int c = j + idy;
-                            if (r >= 0 && r < rows && c >= 0 && c < cols) {
-                                working_pixels[r * cols + c] = 0;
-                            }
+
+                    if(GridNodeMap[pt_idx][pt_idy]->exist_second_height){  // 桥洞区域的所有点双倍采样，分别设置桥上和桥下点
+                        topoMapTemp.z() = GridNodeMap[pt_idx][pt_idy]->second_height;
+                        topo_keypoint.push_back(topoMapTemp);
+                    }
+
+                    for(int idx = -1; idx < 2; idx++){
+                        for(int idy = -1; idy < 2; idy++){
+                            topo_map.at<uchar>(i + idx, j + idy) = 0;
                         }
                     }
                 }
-                else if(keypoint_count == 3){
+                if(keypoint == 3){
+                    int pt_idx, pt_idy, pt_idz;
+                    coord2gridIndex(topoMapTemp.x(), topoMapTemp.y(), topoMapTemp.z(), pt_idx, pt_idy, pt_idz);
+                    topoMapTemp.z() = getHeight(pt_idx, pt_idy);
                     topo_sample_map.push_back(topoMapTemp);
+
+                    if(GridNodeMap[pt_idx][pt_idy]->exist_second_height){  //桥洞同等处理
+                        topoMapTemp.z() = GridNodeMap[pt_idx][pt_idy]->second_height;
+                        topo_sample_map.push_back(topoMapTemp);
+                    }
+
                 }
             }
         }
     }
-    RCLCPP_INFO(m_node->get_logger(), "[GlobalMap] Topo sample done. Samples: %zu, Keypoints: %zu",
-        topo_sample_map.size(), topo_keypoint.size());
+    RCLCPP_WARN(m_node->get_logger(),"[GridMap] topo_sample_map size: %lu", topo_sample_map.size());
+    RCLCPP_WARN(m_node->get_logger(),"[GridMap] topo_keypoint size: %d", topo_keypoint.size());
 }
 void GlobalMap::coord2gridIndex(double &pt_x, double &pt_y, double &pt_z, int &x_idx, int &y_idx, int &z_idx) {
-    x_idx = std::min(std::max(int((pt_x - m_gl_l(0)) * m_inv_resolution), 0), m_grid_size(0)- 1);
-    y_idx = std::min(std::max(int((pt_y - m_gl_l(1)) * m_inv_resolution), 0), m_grid_size(1) - 1);
-    z_idx = std::min(std::max(int((pt_z - m_gl_l(2)) * m_inv_resolution), 0), m_grid_size(22)- 1);
+    x_idx = std::min(std::max(int((pt_x - gl_xl) * m_inv_resolution), 0), GLX_SIZE - 1);
+    y_idx = std::min(std::max(int((pt_y - gl_yl) * m_inv_resolution), 0), GLY_SIZE - 1);
+    z_idx = std::min(std::max(int((pt_z - gl_zl) * m_inv_resolution), 0), GLZ_SIZE - 1);
 }
 
 double GlobalMap::getHeight(int idx_x, int idx_y) {
-    if (idx_x > m_grid_size(0) || idx_y > m_grid_size(1))
+    if (idx_x > GLX_SIZE || idx_y > GLY_SIZE)
         return 0.0;
     return GridNodeMap[idx_x][idx_y]->height;
 }

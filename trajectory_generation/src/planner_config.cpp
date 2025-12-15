@@ -31,6 +31,7 @@ void planner_manger::init(rclcpp::Node::SharedPtr node)
    apex_utils::get_param<std::string>(node,"trajectory_generator.occ_map_path",config.map.occ_map_path,"/home/cod-sentry/qza_ws/cod_planning/src/trajectory_generation/map/occ2024.png");
    apex_utils::get_param<std::string>(node,"trajectory_generator.bev_map_path",config.map.bev_map_path,"/path");
    apex_utils::get_param<std::string>(node,"trajectory_generator.distance_map_path",config.map.distance_map_path,"/path");
+   apex_utils::get_param<std::string>(node,"trajectory_generator.topo_map_path",config.map.topo_map_path,"/path");
 
 
    //search

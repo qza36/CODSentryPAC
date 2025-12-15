@@ -19,6 +19,8 @@ struct GridNode
     double gScore, fScore;
     GridNodePtr cameFrom; //父节点
     std::multimap<double, GridNodePtr>::iterator nodeMapIt; //用来记录自己在OPENLIST中的位置
+    bool exist_second_height = false;
+    double second_height = 0.08;
 
     GridNode(Eigen::Vector3i _index, Eigen::Vector3d _coord){
         id = 0;

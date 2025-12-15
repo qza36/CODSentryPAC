@@ -12,6 +12,7 @@ namespace planner_manger
             std::string occ_map_path;
             std::string bev_map_path;
             std::string distance_map_path;
+            std::string topo_map_path;
             double height_bias;
             double height_interval;
             double height_threshold;

@@ -3,8 +3,7 @@
 
 #include "trajectory_generation/GridNode.hpp"
 #include <memory>
-
-#include "MapData.hpp"
+#include "opencv2/opencv.hpp"
 #include "pcl_conversions/pcl_conversions.h"
 #include "rclcpp/rclcpp.hpp"
 #include "planner_config.hpp"
@@ -14,18 +13,11 @@
 class GlobalMap
 {
 public:
-    GlobalMap()
-    {
-        m_local_cloud=std::make_shared<pcl::PointCloud<pcl::PointXYZ>>(); //智能指针初始化
-    }
-    std::vector<uint8_t> data; // data存放地图的障碍物信息（data[i]为1说明i这个栅格是障碍物栅格）
-    std::vector<uint8_t> l_data; // l_data存放局部地图的障碍物信息（l_data[i]为1说明i这个栅格是障碍物栅格）只用于判断地图对应高度的局部占用情况
-    std::vector<GridNode> m_grid_node_pool; //节点池
-    std::vector<GridNode> m_grid_node_pool_local; //节点池
+    uint8_t *data; // data存放地图的障碍物信息（data[i]为1说明i这个栅格是障碍物栅格）
+    uint8_t *l_data; // l_data存放局部地图的障碍物信息（l_data[i]为1说明i这个栅格是障碍物栅格）只用于判断地图对应高度的局部占用情况
 
-    Eigen::Vector3i m_grid_size; //GLX_SIZE GLY_SIZE GLZ_SIZE,A*拓展节点范围
-    int m_z_stride; //GLXY_SIZE z轴上的步长
-    int m_y_stride; //GLX_SZIE y轴上的步长
+    int GLX_SIZE, GLY_SIZE, GLZ_SIZE; // 地图尺寸
+    int GLXYZ_SIZE, GLYZ_SIZE, GLXY_SIZE;
     size_t m_voxel_num; //GLXYZ_SIZE 搜索范围内的grid数量
     double m_resolution,m_inv_resolution; //分辨率 一个grid代表物理世界中多长的距离
     GridNodePtr **GridNodeMap;
@@ -44,14 +36,18 @@ public:
         rclcpp::Node::SharedPtr node,
         const planner_manger::PlannerConfig& config
         );
-    void occMap2Obs(const map_utils::MapData &map);
-    void topoSampleMap(const map_utils::MapData &map);
+    void occMap2Obs(const cv::Mat &occ_map);
+    void topoSampleMap(cv::Mat &topo_map);
+    cv::Mat swellOccMap(cv::Mat occ_map); //膨胀
 
     double getHeight(int idx_x, int idx_y);
+    Eigen::Vector3d gridIndex2coord(const Eigen::Vector3i &index);
+    Eigen::Vector3i coord2gridIndex(const Eigen::Vector3d &pt);
+    void coord2gridIndex(double &pt_x, double &pt_y, double &pt_z, int &x_idx, int &y_idx, int &z_idx);
 private:
     rclcpp::Node::SharedPtr m_node;
-    Eigen::Vector3d m_gl_l;
-    Eigen::Vector3d m_gl_u;
+    double gl_xl, gl_yl, gl_zl;			   // 地图的左下角坐标
+    double gl_xu, gl_yu, gl_zu;			   // 地图的右上角坐标
 
 
     double m_height_bias;
@@ -73,9 +69,6 @@ private:
     rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr global_map_pub;
     void gazeboPoseCallback(const gazebo_msgs::msg::ModelStates &state);
     void gazeboCloudCallback(const sensor_msgs::msg::PointCloud2 &pointcloud2);
-    Eigen::Vector3d gridIndex2coord(const Eigen::Vector3i &index);
-    Eigen::Vector3i coord2girdIndex(const Eigen::Vector3d &coord);
-    void coord2gridIndex(double &pt_x, double &pt_y, double &pt_z, int &x_idx, int &y_idx, int &z_idx);
     void setObs(const double coord_x,const double coord_y);
 };
 #endif
