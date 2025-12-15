@@ -39,13 +39,22 @@ public:
     void occMap2Obs(const cv::Mat &occ_map);
     void topoSampleMap(cv::Mat &topo_map);
     cv::Mat swellOccMap(cv::Mat occ_map); //膨胀
+    void processSecondHeights();
+
+    void resetUsedGrids();
+
 
     double getHeight(int idx_x, int idx_y);
     Eigen::Vector3d gridIndex2coord(const Eigen::Vector3i &index);
     Eigen::Vector3i coord2gridIndex(const Eigen::Vector3d &pt);
     void coord2gridIndex(double &pt_x, double &pt_y, double &pt_z, int &x_idx, int &y_idx, int &z_idx);
+    void localPointCloudToObstacle(const pcl::PointCloud<pcl::PointXYZ> &cloud, const bool &swell_flag, const
+                               Eigen::Vector3d current_position);
+    bool isOccupied(const int &idx_x, const int &idx_y, const int &idx_z, bool second_height) const;
+    bool isOccupied(const Eigen::Vector3i &index, bool second_height) const;
 private:
     rclcpp::Node::SharedPtr m_node;
+    Eigen::Vector3i current_position_index;
     double gl_xl, gl_yl, gl_zl;			   // 地图的左下角坐标
     double gl_xu, gl_yu, gl_zu;			   // 地图的右上角坐标
 
@@ -68,7 +77,9 @@ private:
 
     rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr global_map_pub;
     void gazeboPoseCallback(const gazebo_msgs::msg::ModelStates::ConstSharedPtr &state);
-    void gazeboCloudCallback(const sensor_msgs::msg::PointCloud2 &pointcloud2);
+    void gazeboCloudCallback(const sensor_msgs::msg::PointCloud2::ConstSharedPtr &pointcloud2);
     void setObs(const double coord_x,const double coord_y);
+    void resetGrid(GridNodePtr ptr);
+    void localSetObs(const double coord_x, const double coord_y, const double coord_z);
 };
 #endif

@@ -1,6 +1,7 @@
 #include "trajectory_generation/GridMap.hpp"
 #include "getparm_utils.hpp"
 #include "trajectory_generation/planner_config.hpp"
+#include <pcl/common/transforms.h>
 
 void GlobalMap::initGridMap(
     rclcpp::Node::SharedPtr node,
@@ -75,6 +76,7 @@ void GlobalMap::initGridMap(
     }
     occ_map = swellOccMap(occ_map);
     occMap2Obs(occ_map);
+    processSecondHeights();
     topoSampleMap(topo_map);
     m_local_cloud.reset(new pcl::PointCloud<pcl::PointXYZ>);
 }
@@ -227,4 +229,218 @@ cv::Mat GlobalMap::swellOccMap(cv::Mat occ_map) {
     }
     RCLCPP_INFO(m_node->get_logger(),"map swell done");
     return occ;
+}
+
+void GlobalMap::gazeboCloudCallback(const sensor_msgs::msg::PointCloud2::ConstSharedPtr &point) {
+       /***
+     * gazebo 雷达数据回调
+     */
+    static pcl::PointCloud<pcl::PointXYZ>::Ptr local_cloud_3d(new pcl::PointCloud<pcl::PointXYZ>);
+    local_cloud_3d->clear();
+    m_local_cloud->clear();
+
+    pcl::fromROSMsg(*point, *local_cloud_3d);
+
+    Eigen::Matrix3d R_x; // 计算旋转矩阵的X分量
+    R_x << 1, 0, 0,
+            0, cos(odom_posture[0]), -sin(odom_posture[0]),
+            0, sin(odom_posture[0]), cos(odom_posture[0]);
+
+    Eigen::Matrix3d R_y; // 计算旋转矩阵的Y分量
+    R_y << cos(odom_posture[1]), 0, sin(odom_posture[1]),
+            0, 1, 0,
+            -sin(odom_posture[1]), 0, cos(odom_posture[1]);
+
+    Eigen::Matrix3d R_z; // 计算旋转矩阵的Z分量
+    R_z << cos(odom_posture[2]), -sin(odom_posture[2]), 0,
+            sin(odom_posture[2]), cos(odom_posture[2]), 0,
+            0, 0, 1;
+    Eigen::Matrix3d R = R_z * R_y * R_x;
+
+    Eigen::Matrix4d transform = Eigen::Matrix4d::Identity();
+    transform.block<3, 3>(0, 0) = R;
+    transform.block<3, 1>(0, 3) = odom_position;
+
+    // 定义输出点云
+    pcl::PointCloud<pcl::PointXYZ>::Ptr output_cloud(new pcl::PointCloud<pcl::PointXYZ>);
+
+    // 进行坐标系转换
+    pcl::transformPointCloud(*local_cloud_3d, *output_cloud, transform);
+
+    clock_t time_1 = clock();
+
+    /* 点云区域筛选 */
+    pcl::PointXYZ pt;
+    pcl::PointXYZ pt_3d;
+    int point_size = 0;
+
+    for (int i = 0; i < (int) output_cloud->points.size(); i++)
+    {
+        pt_3d = output_cloud->points[i];
+        /// 在范围内的点云
+        if (pt_3d.z > m_2d_search_height_low && pt_3d.z < m_2d_search_height_high && (abs(pt_3d.x - odom_position(0)) < m_search_radius) && (abs(pt_3d.y - odom_position(1)) < m_search_radius))
+        {
+            pt.x = pt_3d.x;
+            pt.y = pt_3d.y;
+            pt.z = pt_3d.z + 0.2;
+            m_local_cloud->points.push_back(pt);
+            point_size++;
+        }
+    }
+    clock_t time_2 = clock();
+    localPointCloudToObstacle(*m_local_cloud, true, odom_position);
+
+}
+
+void GlobalMap::localPointCloudToObstacle(const pcl::PointCloud<pcl::PointXYZ> &cloud, const bool &swell_flag, const Eigen::Vector3d current_position) {
+    current_position_index = coord2gridIndex(current_position);  // 当前位置的栅格坐标
+    pcl::PointXYZ pt;
+    memset(l_data, 0, GLXY_SIZE * sizeof(uint8_t));  // TODO 这里直接reset，因此桥洞标志位需要不同的reset方式
+    resetUsedGrids();
+
+    if (!swell_flag){
+
+        for (int idx = 0; idx < (int)cloud.points.size(); idx++){
+            pt = cloud.points[idx];
+            localSetObs(pt.x, pt.y, pt.z);
+        }
+    }
+    else{
+        /* 膨胀处理 */
+
+        for (int idx = 0; idx < (int)cloud.points.size(); idx++){
+            pt = cloud.points[idx];
+            int swell_num = (int)(m_robot_radius_dash / m_resolution);
+            if (pt.x < gl_xl || pt.y < gl_yl || pt.z < gl_zl ||
+                pt.x >= gl_xu || pt.y >= gl_yu || pt.z >= gl_zu)
+                continue;
+            int idx_x = static_cast<int>((pt.x - gl_xl) * m_inv_resolution);
+            int idx_y = static_cast<int>((pt.y - gl_yl) * m_inv_resolution);
+            int idx_z = static_cast<int>((0 - gl_zl) * m_inv_resolution);
+            bool in_bridge_cave = false;
+
+            if(!GridNodeMap[idx_x][idx_y]->exist_second_height||!GridNodeMap[idx_x][idx_y]->second_local_swell){  // 非桥洞区域正常判断
+                if (GridNodeMap[idx_x][idx_y]->height + m_height_threshold > pt.z || GridNodeMap[idx_x][idx_y]->height + 1.0 < pt.z)
+                    continue;
+
+            } else if(GridNodeMap[idx_x][idx_y]->second_local_swell){  // 如果在桥洞里一样的处理，只不过地图预设高度为second_height
+                in_bridge_cave = true;
+                if (GridNodeMap[idx_x][idx_y]->second_height + m_height_threshold > pt.z || GridNodeMap[idx_x][idx_y]->second_height + m_height_sencond_high_threshold < pt.z)
+                    continue;
+            }
+            if(isOccupied(idx_x, idx_y, idx_z, false)){  // TODO 这里暂时处理为已经全局地图下被占用的情况下不再重新膨胀
+                continue;
+            }
+
+            /// TODO 膨胀这里有点问题2024.6.18
+            /// 通过高度地图阈值筛选之后膨胀设计全局地图的占用栅格数据，注意我们不需要设置局部地图高度
+            for (int i = -swell_num; i <= swell_num; i++){
+                for (int j = -swell_num; j <= swell_num; j++){
+                    double temp_x = i * m_resolution + pt.x;
+                    double temp_y = j * m_resolution + pt.y;
+                    double temp_z = pt.z;
+
+                    int idx = static_cast<int>((temp_x - gl_xl) * m_inv_resolution);
+                    int idy = static_cast<int>((temp_y - gl_yl) * m_inv_resolution);
+                    idx = std::max(idx, 0);
+                    idy = std::max(idy, 0);
+                    // 膨胀后的点要判断是不是在桥洞区域，以及如果是非桥洞点膨胀得到的点都不应该视为占用
+                    if(GridNodeMap[idx_x][idx_y]->exist_second_height && !GridNodeMap[idx][idy]->exist_second_height){
+                        continue;
+                    }
+
+                    if(!GridNodeMap[idx_x][idx_y]->exist_second_height && GridNodeMap[idx][idy]->exist_second_height){
+                        continue;
+                    }
+                    localSetObs(temp_x, temp_y, temp_z);
+                    /* 利用点云坐标为栅格地图设置障碍物 */
+
+                }
+            }
+        }
+    }
+}
+void GlobalMap::processSecondHeights()
+{   // TODO 处理桥洞的高度,非常trick的方式，可以考虑手动指定桥洞位置的凡是
+    while(!second_heights_points.empty()){
+        Eigen::Vector3d temp_point = second_heights_points.back();
+        double x_max = temp_point.x();
+        double x_min = temp_point.x();
+        double y_max = temp_point.y();
+        double y_min = temp_point.y();
+        second_heights_points.pop_back();
+        for(std::vector<Eigen::Vector3d>::iterator it = second_heights_points.begin(); it != second_heights_points.end(); it++){
+            if(std::sqrt((temp_point.x() - (*it).x()) * (temp_point.x() - (*it).x())
+                        + (temp_point.y() - (*it).y()) * (temp_point.y() - (*it).y())) < 4.0){
+                x_max = std::max(x_max, (*it).x());
+                x_min = std::min(x_min, (*it).x());
+                y_max = std::max(y_max, (*it).y());
+                y_min = std::min(y_min, (*it).y());
+                it = second_heights_points.erase(it);
+                it--;
+                        }
+        }
+        std::cout<<"xmax: "<<x_max<<" xmin: "<<x_min<<" ymax: "<<y_max<<" ymin: "<<y_min<<std::endl;
+
+        int idx_x_max = static_cast<int>((x_max - gl_xl + 0.01) * m_inv_resolution);
+        int idx_y_max = static_cast<int>((y_max - gl_yl + 0.01) * m_inv_resolution);
+        int idx_x_min = static_cast<int>((x_min - gl_xl + 0.01) * m_inv_resolution);
+        int idx_y_min = static_cast<int>((y_min - gl_yl + 0.01) * m_inv_resolution);
+        for(int i = idx_x_min; i<=idx_x_max; i++) {
+            for (int j = idx_y_min; j <= idx_y_max; j++) {
+                GridNodeMap[i][j]->second_local_swell=true;
+                for(int k = -2; k <= 2; k++){
+                    for(int m = -2; m <= 2; m++){
+                        GridNodeMap[i + k][j + m]->exist_second_height = true;
+                    }
+                }
+
+            }
+        }
+    }
+}
+void GlobalMap::resetUsedGrids() {
+    for (int i = 0; i < GLX_SIZE; i++)
+        for (int j = 0; j < GLY_SIZE; j++)
+        {
+            resetGrid(GridNodeMap[i][j]);
+        }
+}
+inline void GlobalMap::resetGrid(GridNodePtr ptr) {
+    ptr->id = 0;
+    ptr->cameFrom = NULL;
+    ptr->gScore = inf;
+    ptr->fScore = inf;
+    ptr->second_local_occupancy = false;
+}
+void GlobalMap::localSetObs(const double coord_x, const double coord_y, const double coord_z) {
+    if (coord_x < gl_xl || coord_y < gl_yl || coord_z < gl_zl ||
+    coord_x >= gl_xu || coord_y >= gl_yu || coord_z >= gl_zu)
+        return;
+
+    /* 用障碍物空间点坐标找到其所对应的栅格 */
+    int idx_x = static_cast<int>((coord_x - gl_xl) * m_inv_resolution);
+    int idx_y = static_cast<int>((coord_y - gl_yl) * m_inv_resolution);
+    int idx_z = static_cast<int>((0 - gl_zl) * m_inv_resolution);
+
+    if(GridNodeMap[idx_x][idx_y]->exist_second_height){
+        // 在桥洞位置，我们需要根据局部点云的高度和地图的高度差来判断是否桥洞被占用了还是高地被占用了
+        if(coord_z > GridNodeMap[idx_x][idx_y]->second_height + m_height_threshold && coord_z < GridNodeMap[idx_x][idx_y]->second_height + m_height_sencond_high_threshold){  // 如果在桥洞里就设置障碍物
+            GridNodeMap[idx_x][idx_y]->second_local_occupancy = true;  //桥下占用
+        }else if(coord_z > GridNodeMap[idx_x][idx_y]->height + m_height_threshold && coord_z < GridNodeMap[idx_x][idx_y]->height + 0.3){  // 如果在桥上则在l_data中设置障碍物
+            l_data[idx_x * GLY_SIZE + idx_y] = 1; // 桥上占用，在扫到桥洞前沿顶的时候膨胀可能会导致膨胀到外边，外边也是认为桥洞区域因此需要严格设置顶高的阈值(目前0.4)
+        }
+    }else{
+        /* 将障碍物映射为容器里值为1的元素,根据这里的值做raycast process */
+        l_data[idx_x * GLY_SIZE + idx_y] = 1;
+    }
+}
+bool GlobalMap::isOccupied(const int &idx_x, const int &idx_y, const int &idx_z, bool second_height) const
+{  // 桥洞区域判断是否被占用需要特意处理
+    if(second_height){
+        return (idx_x >= 0 && idx_x < GLX_SIZE && idx_y >= 0 && idx_y < GLY_SIZE &&
+                (data[idx_x * GLY_SIZE + idx_y] == 1 || GridNodeMap[idx_x][idx_y]->second_local_occupancy == true));
+    }
+    return (idx_x >= 0 && idx_x < GLX_SIZE && idx_y >= 0 && idx_y < GLY_SIZE && idx_z >= 0 &&
+            (data[idx_x * GLY_SIZE + idx_y] == 1 || l_data[idx_x * GLY_SIZE + idx_y] == 1));
 }
