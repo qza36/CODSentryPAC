@@ -8,18 +8,22 @@ endif()
 # find dependencies
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
-find_package(std_msgs REQUIRED)
 find_package(PCL REQUIRED)
-find_package(sensor_msgs REQUIRED)
 find_package(OpenCV REQUIRED)
-find_package(nav_msgs REQUIRED)
-find_package(gazebo_msgs REQUIRED)
-find_package(sensor_msgs REQUIRED)
 find_package(pcl_conversions REQUIRED)
+
+# msgs
+find_package(nav_msgs REQUIRED)
+find_package(sensor_msgs REQUIRED)
+find_package(gazebo_msgs REQUIRED)
+find_package(std_msgs REQUIRED)
+find_package(sensor_msgs REQUIRED)
+find_package(geometry_msgs REQUIRED)
 
 add_executable(trajectory_generation src/Astrar_searcher.cpp
         src/GridMap.cpp
         src/planner_config.cpp
+        src/TopoSearch.cpp
 )
 
 ament_target_dependencies(trajectory_generation
@@ -31,6 +35,7 @@ ament_target_dependencies(trajectory_generation
         nav_msgs
         gazebo_msgs
         pcl_conversions
+        geometry_msgs
 )
 target_include_directories(trajectory_generation
         PRIVATE
