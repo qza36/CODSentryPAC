@@ -41,9 +41,9 @@ void GlobalMap::initGridMap(
     m_robot_radius_dash=config.search.robot_radius_dash;
 
     std::string occ_map_file = config.map.occ_map_path;
-    std::string topo_map_file = config.map.topo_map_path;
+    std::string distance_map_file = config.map.distance_map_path;
     cv::Mat occ_map = cv::imread(occ_map_file,cv::IMREAD_GRAYSCALE);
-    cv::Mat topo_map = cv::imread(topo_map_file,cv::IMREAD_GRAYSCALE);
+    cv::Mat topo_map = cv::imread(distance_map_file,cv::IMREAD_GRAYSCALE);
 
 
     m_gazebo_odometry_sub = m_node->create_subscription<gazebo_msgs::msg::ModelStates>(
@@ -443,4 +443,26 @@ bool GlobalMap::isOccupied(const int &idx_x, const int &idx_y, const int &idx_z,
     }
     return (idx_x >= 0 && idx_x < GLX_SIZE && idx_y >= 0 && idx_y < GLY_SIZE && idx_z >= 0 &&
             (data[idx_x * GLY_SIZE + idx_y] == 1 || l_data[idx_x * GLY_SIZE + idx_y] == 1));
+}
+
+bool GlobalMap::isOccupied(const Eigen::Vector3i &index, bool second_height) const {
+    return isOccupied(index(0), index(1), index(2), second_height);
+}
+
+bool GlobalMap::isLocalOccupied(const int &idx_x, const int &idx_y, const int &idx_z) const {
+    return (idx_x >= 0 && idx_x < GLX_SIZE && idx_y >= 0 && idx_y < GLY_SIZE && idx_z >= 0 && idx_z < GLZ_SIZE &&
+         (l_data[idx_x * GLY_SIZE + idx_y] == 1));
+}
+
+bool GlobalMap::isLocalOccupied(const Eigen::Vector3i &index) const {
+    return isLocalOccupied(index(0), index(1), index(2));
+}
+
+bool GlobalMap::isFree(const int &idx_x, const int &idx_y, const int &idx_z) const {
+    return (idx_x >= 0 && idx_x < GLX_SIZE && idx_y >= 0 && idx_y < GLY_SIZE && idx_z >= 0 && idx_z < GLZ_SIZE &&
+        (data[idx_x * GLY_SIZE + idx_y] < 1 && l_data[idx_x * GLY_SIZE + idx_y] < 1));
+}
+
+bool GlobalMap::isFree(const Eigen::Vector3i &index) const {
+    return isFree(index(0), index(1), index(2));
 }

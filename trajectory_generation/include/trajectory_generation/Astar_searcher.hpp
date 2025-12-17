@@ -14,8 +14,8 @@ class AstarPathFinder
 public:
     std::shared_ptr<GlobalMap> global_map;
 
-    rclcpp::Publisher<sensor_msgs::msg::PointCloud2> grid_map_vis_pub;
-    rclcpp::Publisher<sensor_msgs::msg::PointCloud2> local_grid_map_vis_pub;
+    rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr grid_map_vis_pub;
+    rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr local_grid_map_vis_pub;
 
     AstarPathFinder(){};
     ~AstarPathFinder(){};
@@ -25,14 +25,25 @@ public:
     void visLocalGridMap(const pcl::PointCloud <pcl::PointXYZ> &cloud, const bool swell_flag);  //局部地图
 
     void stayAwayObstacle(std::vector<Eigen::Vector3d> src_path, std::vector<Eigen::Vector3d> &optimized_path);
-    void initGridMap(ros::NodeHandle &nh, double _resolution, Eigen::Vector3d global_xyz_l, Eigen::Vector3d global_xyz_u,
-                     int max_x_id, int max_y_id, int max_z_id, double robot_radius,
-                     double _2d_search_height_low, double _2d_search_height_high, std::shared_ptr<GlobalMap> &_global_map);
+    void initGridMap(rclcpp::Node::SharedPtr nh, std::shared_ptr<GlobalMap> &_global_map);
 
+    /**
+     * @brief 检查优化完成后路径是否被障碍物遮挡
+     * @param optimized_path
+     * @param collision_pos
+     * @param cur_pos
+     * @param collision_start_point
+     * @param collision_target_point
+     * @param path_start_id
+     * @param path_end_id
+     * @return
+     */
     bool checkPathCollision(std::vector<Eigen::Vector3d> optimized_path, Eigen::Vector3d &collision_pos, Eigen::Vector3d cur_pos,
                             Eigen::Vector3d &collision_start_point, Eigen::Vector3d &collision_target_point,
-                            int &path_start_id, int &path_end_id); /// 检查优化完成后路径是否被动态障碍物遮挡
-
+                            int &path_start_id, int &path_end_id);
+    /**
+     *@brief 获得当前位置在路径中的位置
+     */
     void getCurPositionIndex(std::vector<Eigen::Vector3d> optimized_path, Eigen::Vector3d cur_pos, int &cur_start_id);
 
     bool checkPointCollision(Eigen::Vector3i path_point, int check_swell);							  /// 检查路径是否可行
@@ -44,6 +55,7 @@ public:
     Eigen::Vector3d coordRounding(const Eigen::Vector3d &coord);
 
     bool lineVisib(const Eigen::Vector3d& p1, const Eigen::Vector3d& p2, Eigen::Vector3d& colli_pt, double thresh);
-    Eigen::Vector3i goalIdx
+    Eigen::Vector3i goalIdx;
+    rclcpp::Node::SharedPtr node_;
 };
 #endif

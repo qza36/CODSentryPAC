@@ -23,6 +23,7 @@ struct GridNode
     double second_height = 0.08;
     bool second_local_occupancy = false;
     bool second_local_swell = false;
+    double visibility = 0.0;
     GridNode(Eigen::Vector3i _index, Eigen::Vector3d _coord){
         id = 0;
         index = _index;
@@ -32,6 +33,25 @@ struct GridNode
         gScore = inf;
         fScore = inf;
         cameFrom = NULL;
+    }
+    GridNode(int _X, int _Y, int _Z)
+    {
+        id = 1;
+        height = -1.0;
+        index(0) = _X;
+        index(1) = _Y;
+        index(2) = _Z;
+        dir = Eigen::Vector3i::Zero();
+
+        gScore = inf;
+        fScore = inf;
+        cameFrom = NULL;
+        exist_second_height = false;
+    }
+
+    bool operator<(const GridNode & node) const
+    {
+        return (node.index(0) < index(0)) || ((node.index(0) == index(0)) &&(node.index(1) < index(1)));
     }
 
     GridNode(){};

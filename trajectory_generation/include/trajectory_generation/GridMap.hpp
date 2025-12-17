@@ -52,6 +52,10 @@ public:
                                Eigen::Vector3d current_position);
     bool isOccupied(const int &idx_x, const int &idx_y, const int &idx_z, bool second_height) const;
     bool isOccupied(const Eigen::Vector3i &index, bool second_height) const;
+    bool isLocalOccupied(const int &idx_x, const int &idx_y, const int &idx_z) const;
+    bool isLocalOccupied(const Eigen::Vector3i &index) const;
+    bool isFree(const int &idx_x, const int &idx_y, const int &idx_z) const;
+    bool isFree(const Eigen::Vector3i &index) const;
 private:
     rclcpp::Node::SharedPtr m_node;
     Eigen::Vector3i current_position_index;
