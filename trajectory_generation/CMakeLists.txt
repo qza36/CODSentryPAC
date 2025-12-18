@@ -20,10 +20,13 @@ find_package(std_msgs REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
 
-add_executable(trajectory_generation src/Astrar_searcher.cpp
+add_executable(trajectory_generation src/trajectory_generator_node.cpp
+        src/Astrar_searcher.cpp
         src/GridMap.cpp
         src/planner_config.cpp
         src/TopoSearch.cpp
+        src/plannerManager.cpp
+        src/reference_path.cpp
 )
 
 ament_target_dependencies(trajectory_generation
@@ -49,4 +52,8 @@ target_link_libraries(trajectory_generation
 install(TARGETS
         trajectory_generation
         DESTINATION lib/${PROJECT_NAME})
+
+install(DIRECTORY config launch
+        DESTINATION share/${PROJECT_NAME})
+
 ament_package()

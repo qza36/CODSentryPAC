@@ -1,7 +1,12 @@
-FROM osrf/ros:humble-desktop
+FROM ros:humble-perception-jammy
 
-RUN apt update && apt install ros-humble-pcl* -y && apt install ros-humble-gazebo-msgs -y
-RUN echo "source /opt/ros/humble/setup.bash" >> ~/.bashrc
+RUN apt update && apt install -y --no-install-recommends \
+    build-essential \
+    cmake \
+    libpcl-dev \
+    ros-humble-pcl-msgs \
+    ros-humble-gazebo-msgs \
+    && rm -rf /var/lib/apt/lists/*
 
 ENV AMENT_PREFIX_PATH=/opt/ros/humble
 ENV CMAKE_PREFIX_PATH=/opt/ros/humble
