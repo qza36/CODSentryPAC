@@ -1,0 +1,27 @@
+trajectory_generator:
+  ros__parameters:
+    # Map parameters
+    height_bias: -0.5
+    height_interval: 2.0
+    height_threshold: 0.1
+    height_sencond_high_threshold: 0.4
+    map_lower_point_x: 0.0
+    map_lower_point_y: 0.0
+    map_lower_point_z: 0.0
+    map_upper_point_x: 100.0
+    map_upper_point_y: 100.0
+    map_upper_point_z: 10.0
+    grid_max_id_x: 1000
+    grid_max_id_y: 1000
+    grid_max_id_z: 100
+    resolution: 0.1
+    occ_map_path: "/path/to/occ_map.png"
+    bev_map_path: "/path/to/bev_map.png"
+    distance_map_path: "/path/to/distance_map.png"
+    topo_map_path: "/path/to/topo_map.json"
+    # Search parameters
+    search_height_min: 0.0
+    search_height_max: 0.5
+    search_radius: 0.2
+    robot_radius: 0.3
+    robot_radius_dash: 0.3
