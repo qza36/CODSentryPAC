@@ -2,6 +2,8 @@
 #define PLANNER_CONFIG_HPP
 #include <rclcpp/rclcpp.hpp>
 #include  "Eigen/Core"
+#include <iostream>
+#include <string>
 namespace planner_manger
 {
     struct PlannerConfig

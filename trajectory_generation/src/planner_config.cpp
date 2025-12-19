@@ -1,10 +1,10 @@
 #include "trajectory_generation/planner_config.hpp"
 #include "getparm_utils.hpp"
 #include "trajectory_generation/plannerManger.hpp"
+#include "trajectory_generation/Astar_searcher.hpp"
+#include "trajectory_generation/TopoSearch.hpp"
 
-namespace planner_manger {
-    std::shared_ptr<GlobalMap> global_map;
-}
+
 
 void planner_manger::init(rclcpp::Node::SharedPtr node)
 {
@@ -12,7 +12,7 @@ void planner_manger::init(rclcpp::Node::SharedPtr node)
    //地图参数
    apex_utils::get_param(node,"trajectory_generator.height_bias",config.map.height_bias,-0.5);
    apex_utils::get_param(node,"trajectory_generator.height_interval",config.map.height_interval,2.0);
-   apex_utils::get_param(node,"trajectory_generator.heiht_threshold",config.map.height_threshold,0.1);
+   apex_utils::get_param(node,"trajectory_generator.height_threshold",config.map.height_threshold,0.1);
    apex_utils::get_param(node,"trajectory_generator.height_sencond_high_threshold",config.map.height_sencond_high_threshold,0.4);
    //map lower
    apex_utils::get_param(node,"trajectory_generator.map_lower_point_x",config.map.map_lower_point(0),0.0);
@@ -40,6 +40,4 @@ void planner_manger::init(rclcpp::Node::SharedPtr node)
    apex_utils::get_param(node,"trajectory_generator.search_radius",config.search.search_radius,0.2);
    apex_utils::get_param(node,"trajectory_generator.robot_radius",config.search.robot_radius,0.3);
    apex_utils::get_param(node,"trajectory_generator.robot_radius_dash",config.search.robot_radius_dash,0.3);
-   global_map = std::make_shared<GlobalMap>();
-   global_map->initGridMap(node,config);
 }

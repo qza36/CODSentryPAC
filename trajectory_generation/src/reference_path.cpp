@@ -1,5 +1,11 @@
 #include "trajectory_generation/reference_path.hpp"
 #include <numeric>
+#include <rclcpp/rclcpp.hpp>
+
+namespace {
+const rclcpp::Logger kLogger = rclcpp::get_logger("trajectory_generation.reference_path");
+}
+
 Refenecesmooth::~Refenecesmooth(){}
 
 void Refenecesmooth::init(std::shared_ptr<GlobalMap> &_global_map){
@@ -10,7 +16,7 @@ void Refenecesmooth::setGlobalPath(Eigen::Vector3d velocity, std::vector<Eigen::
 {
     m_global_path = global_path;
     max_accleration = reference_amax;
-    ROS_WARN("[Reference] path size : %d", global_path.size());
+    RCLCPP_WARN(kLogger, "[Reference] path size : %d", global_path.size());
     state_vel = velocity;
     desire_veloity = desire_speed;
     isxtl = xtl;
@@ -46,7 +52,7 @@ void Refenecesmooth::solveTrapezoidalTime()
     double path_length = 0;
     if(m_global_path.size()<2){
         traj_length = 0.0;
-        ROS_ERROR("[Reference] global_path size < 2, No path");
+        RCLCPP_ERROR(kLogger, "[Reference] global_path size < 2, No path");
         return;
     }
     m_trapezoidal_time.clear();
@@ -98,13 +104,13 @@ void Refenecesmooth::solveTrapezoidalTime()
 //    for(int i = 0; i < m_global_path.size() - 1; i++){
 //        std::cout<<"m_trapezoidal_time: "<<m_trapezoidal_time[i]<<std::endl;
 //    }
-    ROS_WARN("[Reference] path_length: %f", path_length);
+    RCLCPP_WARN(kLogger, "[Reference] path_length: %f", path_length);
 }
 
 void Refenecesmooth::solvePolyMatrix()
 {
     if (m_global_path.size() < 2) {
-        ROS_ERROR("[Reference] global_path size < 2, stop solving！");
+        RCLCPP_ERROR(kLogger, "[Reference] global_path size < 2, stop solving！");
         return;
     }
 
@@ -185,7 +191,7 @@ void Refenecesmooth::getRefTrajectory(std::vector<Eigen::Vector3d> &ref_trajecto
 
     if (m_global_path.size() < 2) {
         traj_length = 0.0;
-        ROS_ERROR("[Reference] global_path size < 2, stop solving！");
+        RCLCPP_ERROR(kLogger, "[Reference] global_path size < 2, stop solving！");
         return;
     }
 
@@ -233,7 +239,7 @@ bool Refenecesmooth::checkfeasible()
     bool resolve = false;
     std::vector<bool> ischecked(m_trapezoidal_time.size(), false);
     double time = accumulate(m_trapezoidal_time.begin(), m_trapezoidal_time.end(), 0.0);  /// 参考轨迹的时间分配
-//    ROS_ERROR("m_global_path size: %f", time);
+//    RCLCPP_ERROR(kLogger, "m_global_path size: %f", time);
     std::vector<double> m_trapezoidal_time_temp = m_trapezoidal_time;
     for (int i = 0; i<(int)(time/dt); i++)
     {
@@ -283,4 +289,3 @@ void Refenecesmooth::getSegmentIndex(double time, int &segment_index, double &to
         }
     }
 }
-

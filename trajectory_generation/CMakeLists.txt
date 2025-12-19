@@ -27,6 +27,7 @@ add_executable(trajectory_generation src/trajectory_generator_node.cpp
         src/TopoSearch.cpp
         src/plannerManager.cpp
         src/reference_path.cpp
+        src/path_smooth.cpp
 )
 
 ament_target_dependencies(trajectory_generation
