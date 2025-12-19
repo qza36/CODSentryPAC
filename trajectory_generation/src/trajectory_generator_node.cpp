@@ -4,7 +4,7 @@
 class TrajectoryGeneratorNode : public rclcpp::Node {
 public:
     TrajectoryGeneratorNode() : Node("trajectory_generator") {
-        planner_manger::init(shared_from_this());
+        planner_manager::init(shared_from_this());
         RCLCPP_INFO(get_logger(), "Planner config loaded successfully");
     }
 };

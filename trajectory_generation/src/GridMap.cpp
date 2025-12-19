@@ -5,7 +5,7 @@
 
 void GlobalMap::initGridMap(
     rclcpp::Node::SharedPtr node,
-    const planner_manger::PlannerConfig& config
+    const planner_manager::PlannerConfig& config
 )
 {
     m_node = node;
@@ -465,4 +465,8 @@ bool GlobalMap::isFree(const int &idx_x, const int &idx_y, const int &idx_z) con
 
 bool GlobalMap::isFree(const Eigen::Vector3i &index) const {
     return isFree(index(0), index(1), index(2));
+}
+
+void GlobalMap::setRadiusDash(const double dash_radius) {
+    m_robot_radius_dash = dash_radius;
 }

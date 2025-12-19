@@ -34,7 +34,7 @@ public:
     std::vector<Eigen::Vector3d> second_heights_points; //处理桥洞高度
     void initGridMap(
         rclcpp::Node::SharedPtr node,
-        const planner_manger::PlannerConfig& config
+        const planner_manager::PlannerConfig& config
         );
     void occMap2Obs(const cv::Mat &occ_map);
     void topoSampleMap(cv::Mat &topo_map);
@@ -56,6 +56,7 @@ public:
     bool isLocalOccupied(const Eigen::Vector3i &index) const;
     bool isFree(const int &idx_x, const int &idx_y, const int &idx_z) const;
     bool isFree(const Eigen::Vector3i &index) const;
+    void setRadiusDash(const double dash_radius);
 private:
     rclcpp::Node::SharedPtr m_node;
     Eigen::Vector3i current_position_index;

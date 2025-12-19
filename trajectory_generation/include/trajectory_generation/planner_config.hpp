@@ -4,7 +4,7 @@
 #include  "Eigen/Core"
 #include <iostream>
 #include <string>
-namespace planner_manger
+namespace planner_manager
 {
     struct PlannerConfig
     {

@@ -6,7 +6,7 @@
 #include "trajectory_generation/path_smooth.hpp"
 #include "trajectory_generation/reference_path.hpp"
 
-namespace planner_manger
+namespace planner_manager
 {
     std::unique_ptr<AstarPathFinder> astar_path_finder;
     std::shared_ptr<GlobalMap> global_map;
@@ -34,6 +34,16 @@ namespace planner_manger
     bool isxtl;    // 电控陀螺标志位
     bool xtl_flag; // 规划陀螺标志位
 
+    // 定义随机采样器
+    std::random_device m_rd;
+    std::default_random_engine m_eng;
+    std::uniform_real_distribution<double> m_rand_pos;
+
+    typedef enum {
+        red = 0,
+        blue,
+    } teamColor;
+    teamColor sentryColor;
 
     // 初始化函数
     void init(rclcpp::Node::SharedPtr node);
