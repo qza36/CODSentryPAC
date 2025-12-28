@@ -40,6 +40,8 @@ add_executable(trajectory_generation_node src/trajectory_generator_node.cpp
         src/replan_fsm.cpp
 )
 
+add_executable(fake_odom_node src/fake_odom_node.cpp)
+
 ament_target_dependencies(trajectory_generation_node
         std_msgs
         sensor_msgs
@@ -65,8 +67,11 @@ target_link_libraries(trajectory_generation_node
 rosidl_get_typesupport_target(cpp_typesupport_target ${PROJECT_NAME} rosidl_typesupport_cpp)
 target_link_libraries(trajectory_generation_node "${cpp_typesupport_target}")
 
+ament_target_dependencies(fake_odom_node rclcpp nav_msgs)
+
 install(TARGETS
         trajectory_generation_node
+        fake_odom_node
         DESTINATION lib/${PROJECT_NAME})
 
 install(DIRECTORY config launch
