@@ -15,6 +15,9 @@
 #include "nav_msgs/msg/odometry.hpp"
 #include "nav_msgs/msg/path.hpp"
 #include "geometry_msgs/msg/pose_stamped.hpp"
+#include "geometry_msgs/msg/point.hpp"
+#include "std_msgs/msg/bool.hpp"
+#include "sensor_msgs/msg/point_cloud2.hpp"
 #include "trajectory_generation/msg/trajectory_poly.hpp"
 #include "trajectory_generation/plannerManager.hpp"
 #include "trajectory_generation/visualization_utils.hpp"
@@ -85,9 +88,12 @@ private:
     rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr odom_sub_;
     rclcpp::Subscription<geometry_msgs::msg::PoseStamped>::SharedPtr target_sub_;
     rclcpp::Subscription<nav_msgs::msg::Path>::SharedPtr waypoint_sub_;
+    rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr replan_flag_sub_;
 
     // ==================== 发布者 ====================
     rclcpp::Publisher<trajectory_generation::msg::TrajectoryPoly>::SharedPtr traj_pub_;
+    rclcpp::Publisher<geometry_msgs::msg::Point>::SharedPtr target_point_pub_;
+    rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr grid_map_pub_;
 
     // ==================== 可视化 ====================
     std::unique_ptr<Visualization> visualization_;
@@ -98,6 +104,7 @@ private:
     void odometryCallback(const nav_msgs::msg::Odometry::SharedPtr msg);
     void targetCallback(const geometry_msgs::msg::PoseStamped::SharedPtr msg);
     void waypointCallback(const nav_msgs::msg::Path::SharedPtr msg);
+    void replanFlagCallback(const std_msgs::msg::Bool::SharedPtr msg);
 
     // ==================== 状态机辅助函数 ====================
     void changeFSMState(FSM_STATE new_state, const std::string& reason);
@@ -109,6 +116,8 @@ private:
     bool callReplan();
     bool checkCollision();
     void publishTrajectory();
+    void publishTargetPoint();
+    void publishGridMap();
 };
 
 #endif

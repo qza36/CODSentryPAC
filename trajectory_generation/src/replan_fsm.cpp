@@ -43,8 +43,13 @@ void ReplanFSM::init(rclcpp::Node::SharedPtr node)
     waypoint_sub_ = node_->create_subscription<nav_msgs::msg::Path>(
         "waypoints", 10, std::bind(&ReplanFSM::waypointCallback, this, std::placeholders::_1));
 
+    replan_flag_sub_ = node_->create_subscription<std_msgs::msg::Bool>(
+        "replan_flag", 10, std::bind(&ReplanFSM::replanFlagCallback, this, std::placeholders::_1));
+
     // 创建发布者
     traj_pub_ = node_->create_publisher<trajectory_generation::msg::TrajectoryPoly>("trajectory", 10);
+    target_point_pub_ = node_->create_publisher<geometry_msgs::msg::Point>("target_result", 10);
+    grid_map_pub_ = node_->create_publisher<sensor_msgs::msg::PointCloud2>("grid_map_vis", 10);
 
     // 创建定时器
     exec_timer_ = node_->create_wall_timer(
@@ -99,6 +104,7 @@ void ReplanFSM::execFSMCallback()
             // 更新可视化
             visualization_->visCurPosition(odom_pos_);
             visualization_->visTargetPosition(end_pt_);
+            publishTargetPoint();
 
             // 检查是否到达终点
             double dist_to_goal = (end_pt_ - odom_pos_).head<2>().norm();
@@ -227,6 +233,14 @@ void ReplanFSM::waypointCallback(const nav_msgs::msg::Path::SharedPtr msg)
     }
 }
 
+void ReplanFSM::replanFlagCallback(const std_msgs::msg::Bool::SharedPtr msg)
+{
+    if (msg->data && exec_state_ == EXEC_TRAJ) {
+        RCLCPP_INFO(kLogger, "[FSM] External replan triggered");
+        changeFSMState(REPLAN_TRAJ, "external trigger");
+    }
+}
+
 // ==================== 状态机辅助函数 ====================
 void ReplanFSM::changeFSMState(FSM_STATE new_state, const std::string& reason)
 {
@@ -308,4 +322,19 @@ void ReplanFSM::publishTrajectory()
 
     traj_pub_->publish(msg);
     RCLCPP_INFO(kLogger, "[FSM] Published trajectory with %d segments", num_segments);
+}
+
+void ReplanFSM::publishTargetPoint()
+{
+    geometry_msgs::msg::Point msg;
+    msg.x = end_pt_.x();
+    msg.y = end_pt_.y();
+    msg.z = end_pt_.z();
+    target_point_pub_->publish(msg);
+}
+
+void ReplanFSM::publishGridMap()
+{
+    // TODO: 从global_map获取点云数据并发布
+    // 当前为占位实现，需要GridMap提供点云转换接口
 }
