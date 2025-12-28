@@ -31,10 +31,10 @@ void planner_manager::init(rclcpp::Node::SharedPtr node)
    apex_utils::get_param(node, "trajectory_generator.grid_max_id_z", config.map.map_grid_size(2), 0);
    apex_utils::get_param(node, "trajectory_generator.resolution", config.map.map_resolution, 0.0);
    //map_file_path
-   apex_utils::get_param<std::string>(node,"trajectory_generator.occ_map_path",config.map.occ_map_path,"/home/cod-sentry/qza_ws/cod_planning/src/trajectory_generation/map/occ2024.png");
-   apex_utils::get_param<std::string>(node,"trajectory_generator.bev_map_path",config.map.bev_map_path,"/path");
-   apex_utils::get_param<std::string>(node,"trajectory_generator.distance_map_path",config.map.distance_map_path,"/path");
-   apex_utils::get_param<std::string>(node,"trajectory_generator.topo_map_path",config.map.topo_map_path,"/path");
+   apex_utils::get_param<std::string>(node,"trajectory_generator.occ_map_path",config.map.occ_map_path,"");
+   apex_utils::get_param<std::string>(node,"trajectory_generator.bev_map_path",config.map.bev_map_path,"");
+   apex_utils::get_param<std::string>(node,"trajectory_generator.distance_map_path",config.map.distance_map_path,"");
+   apex_utils::get_param<std::string>(node,"trajectory_generator.topo_map_path",config.map.topo_map_path,"");
 
 
    //search

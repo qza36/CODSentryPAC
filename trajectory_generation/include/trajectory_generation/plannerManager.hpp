@@ -31,43 +31,40 @@
 namespace planner_manager
 {
     // ==================== 规划模块 ====================
-    std::unique_ptr<AstarPathFinder> astar_path_finder;  // A*路径搜索器
-    std::shared_ptr<GlobalMap> global_map;               // 全局地图
-    std::unique_ptr<Smoother> path_smoother;             // 路径平滑器
-    std::unique_ptr<Refenecesmooth> reference_path;      // 参考轨迹生成器
-    std::unique_ptr<TopoSearcher> topo_prm;              // 拓扑搜索器
+    extern std::unique_ptr<AstarPathFinder> astar_path_finder;
+    extern std::shared_ptr<GlobalMap> global_map;
+    extern std::unique_ptr<Smoother> path_smoother;
+    extern std::unique_ptr<Refenecesmooth> reference_path;
+    extern std::unique_ptr<TopoSearcher> topo_prm;
 
     // ==================== 规划结果 ====================
-    std::vector<Eigen::Vector3d> optimized_path;      // 全局优化路径
-    std::vector<Eigen::Vector3d> local_optimize_path; // 局部优化路径
-    std::vector<Eigen::Vector3d> ref_trajectory;      // 参考轨迹(用于可视化和重规划)
-    std::vector<Eigen::Vector3d> astar_path;          // A*搜索路径
-    std::vector<Eigen::Vector2d> final_path;          // 最终路径
-    std::vector<Eigen::Vector2d> final_path_temp;     // 临时路径(可���化用)
-    std::vector<GraphNode::Ptr> global_graph;         // 全局PRM图
+    extern std::vector<Eigen::Vector3d> optimized_path;
+    extern std::vector<Eigen::Vector3d> local_optimize_path;
+    extern std::vector<Eigen::Vector3d> ref_trajectory;
+    extern std::vector<Eigen::Vector3d> astar_path;
+    extern std::vector<Eigen::Vector2d> final_path;
+    extern std::vector<Eigen::Vector2d> final_path_temp;
+    extern std::vector<GraphNode::Ptr> global_graph;
 
     // ==================== 动力学参数 ====================
-    double reference_v_max;           // 最大速度
-    double reference_a_max;           // 最大加速度
-    double reference_w_max;           // 最大角速度
-    double reference_desire_speed;    // 期望速度(正常模式)
-    double reference_desire_speedxtl; // 期望速度(小陀螺模式)
+    extern double reference_v_max;
+    extern double reference_a_max;
+    extern double reference_w_max;
+    extern double reference_desire_speed;
+    extern double reference_desire_speedxtl;
 
     // ==================== 状态标志 ====================
-    bool isxtl;     // 电控陀螺标志位
-    bool xtl_flag;  // 规划陀螺标志位
+    extern bool isxtl;
+    extern bool xtl_flag;
 
     // ==================== 随机采样器 ====================
-    std::random_device m_rd;
-    std::default_random_engine m_eng;
-    std::uniform_real_distribution<double> m_rand_pos;
+    extern std::random_device m_rd;
+    extern std::default_random_engine m_eng;
+    extern std::uniform_real_distribution<double> m_rand_pos;
 
     // ==================== 队伍颜色 ====================
-    typedef enum {
-        red = 0,
-        blue,
-    } teamColor;
-    teamColor sentryColor;
+    typedef enum { red = 0, blue } teamColor;
+    extern teamColor sentryColor;
 
     // ==================== 公共接口 ====================
     /**

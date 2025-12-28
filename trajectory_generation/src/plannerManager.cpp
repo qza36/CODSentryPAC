@@ -1,6 +1,38 @@
 #include "trajectory_generation/plannerManager.hpp"
 #include <rclcpp/rclcpp.hpp>
 
+namespace planner_manager {
+    // 变量定义
+    std::unique_ptr<AstarPathFinder> astar_path_finder;
+    std::shared_ptr<GlobalMap> global_map;
+    std::unique_ptr<Smoother> path_smoother;
+    std::unique_ptr<Refenecesmooth> reference_path;
+    std::unique_ptr<TopoSearcher> topo_prm;
+
+    std::vector<Eigen::Vector3d> optimized_path;
+    std::vector<Eigen::Vector3d> local_optimize_path;
+    std::vector<Eigen::Vector3d> ref_trajectory;
+    std::vector<Eigen::Vector3d> astar_path;
+    std::vector<Eigen::Vector2d> final_path;
+    std::vector<Eigen::Vector2d> final_path_temp;
+    std::vector<GraphNode::Ptr> global_graph;
+
+    double reference_v_max;
+    double reference_a_max;
+    double reference_w_max;
+    double reference_desire_speed;
+    double reference_desire_speedxtl;
+
+    bool isxtl;
+    bool xtl_flag;
+
+    std::random_device m_rd;
+    std::default_random_engine m_eng;
+    std::uniform_real_distribution<double> m_rand_pos;
+
+    teamColor sentryColor;
+}
+
 namespace {
 const rclcpp::Logger kLogger = rclcpp::get_logger("trajectory_generation.planner_manager");
 }
