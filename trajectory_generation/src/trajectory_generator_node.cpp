@@ -1,14 +1,21 @@
-#include "trajectory_generation/GridMap.hpp"
-#include "trajectory_generation/plannerManager.hpp"
+/**
+ * @file trajectory_generator_node.cpp
+ * @brief 轨迹生成节点 - 集成状态机和规划器
+ */
+
+#include "trajectory_generation/replan_fsm.hpp"
 
 class TrajectoryGeneratorNode : public rclcpp::Node {
 public:
     TrajectoryGeneratorNode() : Node("trajectory_generator") {}
 
     void init() {
-        planner_manager::init(shared_from_this());
-        RCLCPP_INFO(get_logger(), "Planner config loaded successfully");
+        fsm_.init(shared_from_this());
+        RCLCPP_INFO(get_logger(), "Trajectory generator initialized");
     }
+
+private:
+    ReplanFSM fsm_;
 };
 
 int main(int argc, char* argv[]) {
