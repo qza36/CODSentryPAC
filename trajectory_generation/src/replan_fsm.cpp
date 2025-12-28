@@ -43,6 +43,9 @@ void ReplanFSM::init(rclcpp::Node::SharedPtr node)
     waypoint_sub_ = node_->create_subscription<nav_msgs::msg::Path>(
         "waypoints", 10, std::bind(&ReplanFSM::waypointCallback, this, std::placeholders::_1));
 
+    // 创建发布者
+    traj_pub_ = node_->create_publisher<trajectory_generation::msg::TrajectoryPoly>("trajectory", 10);
+
     // 创建定时器
     exec_timer_ = node_->create_wall_timer(
         std::chrono::duration<double>(exec_timer_period_),
@@ -81,6 +84,7 @@ void ReplanFSM::execFSMCallback()
             bool success = callPathPlanning();
             if (success) {
                 changeFSMState(EXEC_TRAJ, "planning success");
+                publishTrajectory();
                 // 可视化
                 visualization_->visFinalPath(planner_manager::optimized_path);
                 visualization_->visReferencePath(planner_manager::ref_trajectory);
@@ -125,6 +129,7 @@ void ReplanFSM::execFSMCallback()
             bool success = callReplan();
             if (success) {
                 changeFSMState(EXEC_TRAJ, "replan success");
+                publishTrajectory();
                 visualization_->visFinalPath(planner_manager::optimized_path);
                 visualization_->visReferencePath(planner_manager::ref_trajectory);
             } else {
@@ -276,4 +281,31 @@ bool ReplanFSM::checkCollision()
         collision_pos, odom_pos_,
         collision_start, collision_end,
         start_id, end_id);
+}
+
+void ReplanFSM::publishTrajectory()
+{
+    auto& ref_path = planner_manager::reference_path;
+    if (!ref_path || ref_path->m_trapezoidal_time.empty()) {
+        RCLCPP_WARN(kLogger, "[FSM] No trajectory to publish");
+        return;
+    }
+
+    trajectory_generation::msg::TrajectoryPoly msg;
+    msg.start_time = node_->now();
+    msg.motion_mode = 0;
+
+    int num_segments = ref_path->m_trapezoidal_time.size();
+    for (int i = 0; i < num_segments; ++i) {
+        msg.duration.push_back(ref_path->m_trapezoidal_time[i]);
+
+        // 每段4个系数: c0 + c1*t + c2*t^2 + c3*t^3
+        for (int j = 0; j < 4; ++j) {
+            msg.coef_x.push_back(ref_path->m_polyMatrix_x(i, j));
+            msg.coef_y.push_back(ref_path->m_polyMatrix_y(i, j));
+        }
+    }
+
+    traj_pub_->publish(msg);
+    RCLCPP_INFO(kLogger, "[FSM] Published trajectory with %d segments", num_segments);
 }

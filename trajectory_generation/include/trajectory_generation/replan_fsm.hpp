@@ -15,6 +15,7 @@
 #include "nav_msgs/msg/odometry.hpp"
 #include "nav_msgs/msg/path.hpp"
 #include "geometry_msgs/msg/pose_stamped.hpp"
+#include "trajectory_generation/msg/trajectory_poly.hpp"
 #include "trajectory_generation/plannerManager.hpp"
 #include "trajectory_generation/visualization_utils.hpp"
 
@@ -85,6 +86,9 @@ private:
     rclcpp::Subscription<geometry_msgs::msg::PoseStamped>::SharedPtr target_sub_;
     rclcpp::Subscription<nav_msgs::msg::Path>::SharedPtr waypoint_sub_;
 
+    // ==================== 发布者 ====================
+    rclcpp::Publisher<trajectory_generation::msg::TrajectoryPoly>::SharedPtr traj_pub_;
+
     // ==================== 可视化 ====================
     std::unique_ptr<Visualization> visualization_;
 
@@ -104,6 +108,7 @@ private:
     bool callPathPlanning();
     bool callReplan();
     bool checkCollision();
+    void publishTrajectory();
 };
 
 #endif

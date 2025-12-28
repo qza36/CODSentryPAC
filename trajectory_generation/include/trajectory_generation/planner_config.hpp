@@ -33,6 +33,14 @@ namespace planner_manager
             double robot_radius;
             double robot_radius_dash;
         }search;
+        //动力学参数
+        struct DynamicsConfig
+        {
+            double v_max = 2.0;           // 最大速度 (m/s)
+            double a_max = 3.0;           // 最大加速度 (m/s^2)
+            double w_max = 2.0;           // 最大角速度 (rad/s)
+            double desire_speed = 1.5;    // 期望速度 (m/s)
+        }dynamics;
     };
 }
 #endif

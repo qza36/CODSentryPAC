@@ -44,6 +44,12 @@ void planner_manager::init(rclcpp::Node::SharedPtr node)
    apex_utils::get_param(node,"trajectory_generator.robot_radius",config.search.robot_radius,0.3);
    apex_utils::get_param(node,"trajectory_generator.robot_radius_dash",config.search.robot_radius_dash,0.3);
 
+   //dynamics
+   apex_utils::get_param(node,"trajectory_generator.reference_v_max",config.dynamics.v_max,2.0);
+   apex_utils::get_param(node,"trajectory_generator.reference_a_max",config.dynamics.a_max,3.0);
+   apex_utils::get_param(node,"trajectory_generator.reference_w_max",config.dynamics.w_max,2.0);
+   apex_utils::get_param(node,"trajectory_generator.reference_desire_speed",config.dynamics.desire_speed,1.5);
+
    RCLCPP_INFO(kLogger, "[Manager Init] map/occ_file_path: %s", config.map.occ_map_path.c_str());
    RCLCPP_INFO(kLogger, "[Manager Init] map/bev_file_path: %s", config.map.bev_map_path.c_str());
    RCLCPP_INFO(kLogger, "[Manager Init] map/distance_map_file_path: %s", config.map.distance_map_path.c_str());
@@ -64,6 +70,9 @@ void planner_manager::init(rclcpp::Node::SharedPtr node)
 
    reference_path.reset(new Refenecesmooth);
    reference_path->init(global_map);
+   reference_path->max_accleration = config.dynamics.a_max;
+   reference_path->max_velocity = config.dynamics.v_max;
+   reference_path->desire_veloity = config.dynamics.desire_speed;
 
    topo_prm.reset(new TopoSearcher);
    topo_prm->init(global_map);
