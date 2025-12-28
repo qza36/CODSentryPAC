@@ -1,5 +1,5 @@
 #include "trajectory_generation/Astar_searcher.hpp"
-#include "trajectory_generation/plannerManger.hpp"
+#include "trajectory_generation/plannerManager.hpp"
 
 void AstarPathFinder::initGridMap(rclcpp::Node::SharedPtr nh, std::shared_ptr<GlobalMap> &_global_map) {
     global_map = _global_map;
@@ -354,7 +354,6 @@ bool AstarPathFinder::findNeighPoint(Eigen::Vector3i path_point, Eigen::Vector3i
  * @param
  */
 void AstarPathFinder::visGridMap() {
-//    ROS_WARN("start publish GridMap");
     pcl::PointCloud <pcl::PointXYZRGB> cloud_vis;
     sensor_msgs::msg::PointCloud2 map_vis;
     pcl::PointXYZRGB pt;
@@ -459,7 +458,6 @@ void AstarPathFinder::visLocalGridMap(const pcl::PointCloud <pcl::PointXYZ> &clo
     cloud_vis.width = cloud_vis.points.size();
     cloud_vis.height = 1;
     cloud_vis.is_dense = true;
-//    ROS_WARN("local point size is  %d ", (int)cloud_vis.points.size());
 
     /* 将障碍物的PCL点云数据类型转换为ROS点云通信数据类型*/
     pcl::toROSMsg(cloud_vis, map_vis);

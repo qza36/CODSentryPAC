@@ -1,6 +1,6 @@
 #include "trajectory_generation/planner_config.hpp"
 #include "getparm_utils.hpp"
-#include "trajectory_generation/plannerManger.hpp"
+#include "trajectory_generation/plannerManager.hpp"
 #include "trajectory_generation/Astar_searcher.hpp"
 #include "trajectory_generation/TopoSearch.hpp"
 #include <rclcpp/rclcpp.hpp>

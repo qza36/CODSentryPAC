@@ -3,7 +3,7 @@
 #include <boost/type.hpp>
 
 #include "Eigen/Eigen"
-#define inf 1>>20
+#define inf (1 << 20)
 struct GridNode;
 typedef GridNode* GridNodePtr;
 struct OccupancyNode;

@@ -21,7 +21,7 @@ find_package(sensor_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
 
 add_executable(trajectory_generation src/trajectory_generator_node.cpp
-        src/Astrar_searcher.cpp
+        src/Astar_searcher.cpp
         src/GridMap.cpp
         src/planner_config.cpp
         src/TopoSearch.cpp

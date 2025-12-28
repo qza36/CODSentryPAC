@@ -1,4 +1,4 @@
-#include "trajectory_generation/plannerManger.hpp"
+#include "trajectory_generation/plannerManager.hpp"
 #include <rclcpp/rclcpp.hpp>
 
 namespace {
@@ -67,16 +67,17 @@ std::vector<Eigen::Vector3d> planner_manager::localPathFinding(const Eigen::Vect
 bool planner_manager::replanFinding(const Eigen::Vector3d start_point, const Eigen::Vector3d target_point,
                                     const Eigen::Vector3d start_vel)
 {
-    ROS_INFO("[Manager REPLAN]  cur position point (X, Y) = (%f, %f), target point (X, Y) = (%f, %f)", start_point(0), start_point(1), target_point(0), target_point(1));
+    RCLCPP_INFO(kLogger, "[Manager REPLAN] cur position (X, Y) = (%.2f, %.2f), target (X, Y) = (%.2f, %.2f)",
+                start_point(0), start_point(1), target_point(0), target_point(1));
     if (optimized_path.size() > 0){
         int path_start_id;
         int path_end_id;
         Eigen::Vector3d collision_pos;
         Eigen::Vector3d collision_start_point;
         Eigen::Vector3d collision_target_point;
-        Eigen::Vector3d target_temp = optimized_path.back();  /// 这里的优化路径可能不是我的目标终点
-        ROS_INFO("[Manager REPLAN] target_temp (X, Y) = (%f, %f)", target_temp(0), target_temp(1));
-        /// 检查碰撞并判断距离规划的最后一个点与目标点的距离，如果原路径碰撞或者可通行且规划终点与实际终点不符的都要进行全局重规划
+        Eigen::Vector3d target_temp = optimized_path.back();
+        RCLCPP_INFO(kLogger, "[Manager REPLAN] target_temp (X, Y) = (%.2f, %.2f)", target_temp(0), target_temp(1));
+
         bool collision = astar_path_finder->checkPathCollision(optimized_path, collision_pos, start_point,
                                                                collision_start_point, collision_target_point,
                                                                path_start_id, path_end_id);
@@ -84,15 +85,15 @@ bool planner_manager::replanFinding(const Eigen::Vector3d start_point, const Eig
                                pow(target_point.y() - target_temp.y(), 2)) + 0.01;
 
         if(target_distance > 0.5){
-            ROS_WARN("[Manager REPLAN] target_distance: %f", target_distance);
+            RCLCPP_WARN(kLogger, "[Manager REPLAN] target_distance: %.2f", target_distance);
         }
-        if (collision) {  // 发生碰撞后的处理
-            std::vector<Eigen::Vector3d> local_path;  // 先进行局部规划
-            ROS_INFO("[Manager REPLAN] start local planning");
+        if (collision) {
+            std::vector<Eigen::Vector3d> local_path;
+            RCLCPP_INFO(kLogger, "[Manager REPLAN] start local planning");
             local_path = localPathFinding(collision_start_point, collision_target_point);
 
             if ((local_path.size() == 0)) {
-                ROS_WARN("[Manager REPLAN] local plan fail need global planning replan");
+                RCLCPP_WARN(kLogger, "[Manager REPLAN] local plan fail, need global replan");
                 if(!pathFinding(start_point, target_point, start_vel)){
                     return false;
                 }else{
@@ -101,11 +102,10 @@ bool planner_manager::replanFinding(const Eigen::Vector3d start_point, const Eig
             }
             else{
                 local_path.insert(local_path.end(), optimized_path.begin() + path_end_id + 1, optimized_path.end());
-                optimized_path = astar_path_finder->smoothTopoPath(local_path);  // 剪枝优化topo路径;
+                optimized_path = astar_path_finder->smoothTopoPath(local_path);
                 local_optimize_path = local_path;
-                /* 二次规划（路径裁减） */
 
-                RCLCPP_INFO(kLogger,"[Manager REPLAN] optimized path size is %d", optimized_path.size());
+                RCLCPP_INFO(kLogger, "[Manager REPLAN] optimized path size is %zu", optimized_path.size());
                 // 路径优化
 
                 double reference_speed = isxtl? reference_desire_speedxtl : reference_desire_speed;
