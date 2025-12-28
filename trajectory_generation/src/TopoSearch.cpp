@@ -3,9 +3,25 @@
 // Created by zzt on 23-10-22.
 //
 
+namespace {
+const rclcpp::Logger kLogger = rclcpp::get_logger("trajectory_generation.topo_search");
+}
 
-void TopoSearcher::init(std::shared_ptr<GlobalMap> &_global_map)
+void TopoSearcher::init(rclcpp::Node::SharedPtr node, std::shared_ptr<GlobalMap> &_global_map)
 {
+    // 参数校验
+    if (!node) {
+        RCLCPP_FATAL(kLogger, "[TopoSearcher] init failed: node is nullptr!");
+        throw std::runtime_error("TopoSearcher::init() - node is nullptr");
+    }
+    if (!_global_map) {
+        RCLCPP_FATAL(node->get_logger(), "[TopoSearcher] init failed: global_map is nullptr!");
+        throw std::runtime_error("TopoSearcher::init() - global_map is nullptr");
+    }
+
+    node_ = node;
+    global_map = _global_map;
+
     m_graph.clear();
     m_eng = std::default_random_engine(m_rd());
     m_rand_pos = std::uniform_real_distribution<double>(0.0, 1.0);
@@ -14,7 +30,8 @@ void TopoSearcher::init(std::shared_ptr<GlobalMap> &_global_map)
     m_sample_inflate(0) = 2.0;
     m_sample_inflate(1) = 7.0;
 
-    global_map = _global_map;
+    RCLCPP_INFO(node_->get_logger(), "[TopoSearcher] Initialized: max_sample_num=%d, sample_inflate=(%.1f, %.1f)",
+                max_sample_num, m_sample_inflate(0), m_sample_inflate(1));
 }
 
 void TopoSearcher::createLocalGraph(Eigen::Vector3d start, Eigen::Vector3d end, bool attack_target){
@@ -516,20 +533,11 @@ Eigen::Vector3d TopoSearcher::getSample()
      * @return 采样点
      */
     Eigen::Vector3d pt;
-    if(m_rand_pos(m_eng) < 0.1){  // 30的概率采样附近的点
-        for(int i = 0; i< 4 ; i++){
-            int x_i = int(m_rand_pos(m_eng) * 120);
-            int y_i = int(m_rand_pos(m_eng) * 120);
-            pt.x() = global_map->odom_position.x() + (x_i - 60) * 0.1;
-            pt.y() = global_map->odom_position.y() + (y_i - 60) * 0.1;
-            Eigen::Vector3i pt_idx = global_map->coord2gridIndex(pt);
-            pt.z() = global_map->getHeight(pt_idx.x(), pt_idx.y());
-            if(!global_map->isOccupied(pt_idx, false)) {
-                return pt;
-            }
-        }
+    if(global_map->topo_sample_map.empty()) {
+        pt.setZero();
+        return pt;
     }
-    int index = int(m_rand_pos(m_eng) * global_map->topo_sample_map.size());
+    int index = int(m_rand_pos(m_eng) * (global_map->topo_sample_map.size() - 1));
     pt = global_map->topo_sample_map[index];
     return pt;
 }

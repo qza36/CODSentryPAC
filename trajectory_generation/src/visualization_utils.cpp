@@ -4,6 +4,7 @@
  */
 
 #include "trajectory_generation/visualization_utils.hpp"
+#include <sensor_msgs/point_cloud2_iterator.hpp>
 
 void Visualization::init(rclcpp::Node::SharedPtr node)
 {
@@ -23,6 +24,12 @@ void Visualization::init(rclcpp::Node::SharedPtr node)
     topo_path_point_pub_ = node_->create_publisher<visualization_msgs::msg::Marker>("topo_path_point_vis", 1);
     topo_path_pub_ = node_->create_publisher<visualization_msgs::msg::Marker>("topo_path_vis", 1);
     obs_pub_ = node_->create_publisher<visualization_msgs::msg::Marker>("obs_vis", 1);
+    // 使用 transient_local 确保后启动的订阅者也能收到地图
+    rclcpp::QoS qos_latched(1);
+    qos_latched.transient_local();
+    grid_map_pub_ = node_->create_publisher<sensor_msgs::msg::PointCloud2>("grid_map_vis", qos_latched);
+
+    RCLCPP_INFO(node_->get_logger(), "[Visualization] Initialized with %d publishers", 14);
 }
 
 visualization_msgs::msg::Marker Visualization::createMarker(
@@ -285,4 +292,57 @@ void Visualization::visObstacles(const std::vector<std::vector<Eigen::Vector3d>>
     }
 
     obs_pub_->publish(marker);
+}
+
+void Visualization::visGridMap(const std::shared_ptr<GlobalMap>& global_map)
+{
+    if (!global_map) {
+        RCLCPP_WARN(node_->get_logger(), "[Visualization] global_map is null, skip map visualization");
+        return;
+    }
+
+    sensor_msgs::msg::PointCloud2 cloud;
+    cloud.header.frame_id = frame_id_;
+    cloud.header.stamp = node_->now();
+
+    // 收集障碍物点
+    std::vector<Eigen::Vector3d> obs_points;
+
+    for (int i = 0; i < global_map->GLX_SIZE; ++i) {
+        for (int j = 0; j < global_map->GLY_SIZE; ++j) {
+            if (global_map->isOccupied(i, j, 0, false)) {
+                Eigen::Vector3d pt = global_map->gridIndex2coord(Eigen::Vector3i(i, j, 0));
+                obs_points.push_back(pt);
+            }
+        }
+    }
+
+    if (obs_points.empty()) {
+        RCLCPP_DEBUG(node_->get_logger(), "[Visualization] No obstacles to visualize");
+        return;
+    }
+
+    // 设置点云字段
+    cloud.height = 1;
+    cloud.width = obs_points.size();
+    cloud.is_dense = true;
+    cloud.is_bigendian = false;
+
+    sensor_msgs::PointCloud2Modifier modifier(cloud);
+    modifier.setPointCloud2FieldsByString(1, "xyz");
+    modifier.resize(obs_points.size());
+
+    sensor_msgs::PointCloud2Iterator<float> iter_x(cloud, "x");
+    sensor_msgs::PointCloud2Iterator<float> iter_y(cloud, "y");
+    sensor_msgs::PointCloud2Iterator<float> iter_z(cloud, "z");
+
+    for (const auto& pt : obs_points) {
+        *iter_x = static_cast<float>(pt.x());
+        *iter_y = static_cast<float>(pt.y());
+        *iter_z = 0.0f;
+        ++iter_x; ++iter_y; ++iter_z;
+    }
+
+    grid_map_pub_->publish(cloud);
+    RCLCPP_INFO(node_->get_logger(), "[Visualization] Published grid map with %zu obstacle points", obs_points.size());
 }

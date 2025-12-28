@@ -100,7 +100,7 @@ public:
     double m_resolution;     // 采样分辨率
 
     // ==================== 公共接口 ====================
-    void init(std::shared_ptr<GlobalMap> &_global_map);
+    void init(rclcpp::Node::SharedPtr node, std::shared_ptr<GlobalMap> &_global_map);
 
     /**
      * @brief 创建全局拓扑图

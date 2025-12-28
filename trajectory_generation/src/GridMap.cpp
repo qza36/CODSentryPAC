@@ -27,7 +27,8 @@ void GlobalMap::initGridMap(
     GLYZ_SIZE = GLY_SIZE * GLZ_SIZE;
     GLXYZ_SIZE = GLX_SIZE * GLYZ_SIZE;
 
-    m_resolution = 1.0 /config.map.map_resolution;
+    m_resolution = config.map.map_resolution;
+    m_inv_resolution = 1.0 / config.map.map_resolution;
     //初始化地图
     data = new uint8_t[GLXY_SIZE];
     l_data = new uint8_t[GLXY_SIZE];
@@ -186,7 +187,7 @@ void GlobalMap::coord2gridIndex(double &pt_x, double &pt_y, double &pt_z, int &x
 }
 
 double GlobalMap::getHeight(int idx_x, int idx_y) {
-    if (idx_x > GLX_SIZE || idx_y > GLY_SIZE)
+    if (idx_x < 0 || idx_x >= GLX_SIZE || idx_y < 0 || idx_y >= GLY_SIZE)
         return 0.0;
     return GridNodeMap[idx_x][idx_y]->height;
 }
@@ -342,8 +343,7 @@ void GlobalMap::localPointCloudToObstacle(const pcl::PointCloud<pcl::PointXYZ> &
 
                     int idx = static_cast<int>((temp_x - gl_xl) * m_inv_resolution);
                     int idy = static_cast<int>((temp_y - gl_yl) * m_inv_resolution);
-                    idx = std::max(idx, 0);
-                    idy = std::max(idy, 0);
+                    if (idx < 0 || idx >= GLX_SIZE || idy < 0 || idy >= GLY_SIZE) continue;
                     // 膨胀后的点要判断是不是在桥洞区域，以及如果是非桥洞点膨胀得到的点都不应该视为占用
                     if(GridNodeMap[idx_x][idx_y]->exist_second_height && !GridNodeMap[idx][idy]->exist_second_height){
                         continue;
@@ -388,10 +388,14 @@ void GlobalMap::processSecondHeights()
         int idx_y_min = static_cast<int>((y_min - gl_yl + 0.01) * m_inv_resolution);
         for(int i = idx_x_min; i<=idx_x_max; i++) {
             for (int j = idx_y_min; j <= idx_y_max; j++) {
+                if (i < 0 || i >= GLX_SIZE || j < 0 || j >= GLY_SIZE) continue;
                 GridNodeMap[i][j]->second_local_swell=true;
                 for(int k = -2; k <= 2; k++){
                     for(int m = -2; m <= 2; m++){
-                        GridNodeMap[i + k][j + m]->exist_second_height = true;
+                        int ni = i + k, nj = j + m;
+                        if (ni >= 0 && ni < GLX_SIZE && nj >= 0 && nj < GLY_SIZE) {
+                            GridNodeMap[ni][nj]->exist_second_height = true;
+                        }
                     }
                 }
 

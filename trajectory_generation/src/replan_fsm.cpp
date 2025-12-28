@@ -62,6 +62,9 @@ void ReplanFSM::init(rclcpp::Node::SharedPtr node)
 
     RCLCPP_INFO(kLogger, "[FSM] Initialized, exec_period=%.2fs, safety_period=%.2fs",
                 exec_timer_period_, safety_timer_period_);
+
+    // 初始化完成后发布一次地图可视化
+    visualization_->visGridMap(planner_manager::global_map);
 }
 
 // ==================== 状态机主循环 ====================
@@ -85,6 +88,14 @@ void ReplanFSM::execFSMCallback()
         case GEN_NEW_TRAJ: {
             start_pt_ = odom_pos_;
             start_vel_ = odom_vel_;
+
+            // 检查起点是否有效
+            Eigen::Vector3i start_idx = planner_manager::global_map->coord2gridIndex(start_pt_);
+            if (planner_manager::global_map->isOccupied(start_idx, false)) {
+                RCLCPP_WARN(kLogger, "[FSM] Start point (%.2f, %.2f) is in obstacle, waiting for valid odom...",
+                            start_pt_.x(), start_pt_.y());
+                break;
+            }
 
             bool success = callPathPlanning();
             if (success) {
@@ -132,12 +143,25 @@ void ReplanFSM::execFSMCallback()
             start_pt_ = odom_pos_;
             start_vel_ = odom_vel_;
 
+            // 检查起点是否有效
+            Eigen::Vector3i start_idx = planner_manager::global_map->coord2gridIndex(start_pt_);
+            if (planner_manager::global_map->isOccupied(start_idx, false)) {
+                RCLCPP_WARN(kLogger, "[FSM] Replan start (%.2f, %.2f) is in obstacle, skip replan",
+                            start_pt_.x(), start_pt_.y());
+                changeFSMState(EXEC_TRAJ, "invalid start");
+                break;
+            }
+
             bool success = callReplan();
             if (success) {
                 changeFSMState(EXEC_TRAJ, "replan success");
                 publishTrajectory();
-                visualization_->visFinalPath(planner_manager::optimized_path);
-                visualization_->visReferencePath(planner_manager::ref_trajectory);
+                if (!planner_manager::optimized_path.empty()) {
+                    visualization_->visFinalPath(planner_manager::optimized_path);
+                }
+                if (!planner_manager::ref_trajectory.empty()) {
+                    visualization_->visReferencePath(planner_manager::ref_trajectory);
+                }
             } else {
                 // 重规划失败，尝试全局规划
                 RCLCPP_WARN(kLogger, "[FSM] Replan failed, try global planning");
@@ -168,7 +192,9 @@ void ReplanFSM::safetyCheckCallback()
         bool success = callReplan();
         if (success) {
             RCLCPP_WARN(kLogger, "[SAFETY] Collision detected, replanned");
-            visualization_->visFinalPath(planner_manager::optimized_path);
+            if (!planner_manager::optimized_path.empty()) {
+                visualization_->visFinalPath(planner_manager::optimized_path);
+            }
         } else {
             // 重规划失败，紧急停止
             RCLCPP_ERROR(kLogger, "[SAFETY] Emergency stop!");
@@ -201,6 +227,13 @@ void ReplanFSM::targetCallback(const geometry_msgs::msg::PoseStamped::SharedPtr 
     end_pt_.x() = msg->pose.position.x;
     end_pt_.y() = msg->pose.position.y;
     end_pt_.z() = 0.0;
+
+    // 检查目标点是否在障碍物内
+    Eigen::Vector3i idx = planner_manager::global_map->coord2gridIndex(end_pt_);
+    if (planner_manager::global_map->isOccupied(idx, false)) {
+        RCLCPP_ERROR(kLogger, "[FSM] Target (%.2f, %.2f) is inside obstacle! Ignoring.", end_pt_.x(), end_pt_.y());
+        return;
+    }
 
     RCLCPP_INFO(kLogger, "[FSM] New target: (%.2f, %.2f)", end_pt_.x(), end_pt_.y());
 

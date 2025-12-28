@@ -8,17 +8,17 @@ trajectory_generator:
     map_lower_point_x: 0.0
     map_lower_point_y: 0.0
     map_lower_point_z: 0.0
-    map_upper_point_x: 100.0
-    map_upper_point_y: 100.0
-    map_upper_point_z: 10.0
-    grid_max_id_x: 1000
-    grid_max_id_y: 1000
-    grid_max_id_z: 100
+    map_upper_point_x: 30.1
+    map_upper_point_y: 16.1
+    map_upper_point_z: 2.0
+    grid_max_id_x: 301
+    grid_max_id_y: 161
+    grid_max_id_z: 20
     resolution: 0.1
-    occ_map_path: "/path/to/occ_map.png"
-    bev_map_path: "/path/to/bev_map.png"
-    distance_map_path: "/path/to/distance_map.png"
-    topo_map_path: "/path/to/topo_map.json"
+    occ_map_path: "/home/cod/qza_ws/src/trajectory_generation/map/occ2024low.png"
+    bev_map_path: "/home/cod/qza_ws/src/trajectory_generation/map/bev2024low.png"
+    distance_map_path: "/home/cod/qza_ws/src/trajectory_generation/map/occtopo2024low.png"
+    topo_map_path: ""
     # Search parameters
     search_height_min: 0.0
     search_height_max: 0.5

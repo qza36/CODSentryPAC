@@ -35,9 +35,41 @@ namespace planner_manager {
 
 namespace {
 const rclcpp::Logger kLogger = rclcpp::get_logger("trajectory_generation.planner_manager");
+
+// 检查模块是否已初始化
+bool checkModulesInitialized() {
+    bool ok = true;
+    if (!planner_manager::topo_prm) {
+        RCLCPP_ERROR(kLogger, "[Manager] topo_prm is not initialized!");
+        ok = false;
+    }
+    if (!planner_manager::global_map) {
+        RCLCPP_ERROR(kLogger, "[Manager] global_map is not initialized!");
+        ok = false;
+    }
+    if (!planner_manager::astar_path_finder) {
+        RCLCPP_ERROR(kLogger, "[Manager] astar_path_finder is not initialized!");
+        ok = false;
+    }
+    if (!planner_manager::path_smoother) {
+        RCLCPP_ERROR(kLogger, "[Manager] path_smoother is not initialized!");
+        ok = false;
+    }
+    if (!planner_manager::reference_path) {
+        RCLCPP_ERROR(kLogger, "[Manager] reference_path is not initialized!");
+        ok = false;
+    }
+    return ok;
+}
 }
 
 bool planner_manager::pathFinding(const Eigen::Vector3d start_pt, const Eigen::Vector3d target_pt, const Eigen::Vector3d start_vel) {
+    // 模块初始化检查
+    if (!checkModulesInitialized()) {
+        RCLCPP_FATAL(kLogger, "[Manager] Modules not initialized! Call planner_manager::init() first.");
+        return false;
+    }
+
     RCLCPP_WARN(kLogger, "[Manager] start point, (x, y): (%.2f, %.2f)", start_pt.x(), start_pt.y());
     RCLCPP_WARN(kLogger, "[Manager] receive target, (x, y): (%.2f, %.2f)", target_pt.x(), target_pt.y());
     topo_prm->createGraph(start_pt, target_pt);
@@ -102,8 +134,8 @@ bool planner_manager::replanFinding(const Eigen::Vector3d start_point, const Eig
     RCLCPP_INFO(kLogger, "[Manager REPLAN] cur position (X, Y) = (%.2f, %.2f), target (X, Y) = (%.2f, %.2f)",
                 start_point(0), start_point(1), target_point(0), target_point(1));
     if (optimized_path.size() > 0){
-        int path_start_id;
-        int path_end_id;
+        int path_start_id = -1;
+        int path_end_id = -1;
         Eigen::Vector3d collision_pos;
         Eigen::Vector3d collision_start_point;
         Eigen::Vector3d collision_target_point;
@@ -120,6 +152,10 @@ bool planner_manager::replanFinding(const Eigen::Vector3d start_point, const Eig
             RCLCPP_WARN(kLogger, "[Manager REPLAN] target_distance: %.2f", target_distance);
         }
         if (collision) {
+            if (path_start_id < 0 || path_end_id < 0 || path_end_id >= static_cast<int>(optimized_path.size())) {
+                RCLCPP_ERROR(kLogger, "[Manager REPLAN] collision ids invalid start:%d end:%d size:%zu, fallback to global replan", path_start_id, path_end_id, optimized_path.size());
+                return pathFinding(start_point, target_point, start_vel);
+            }
             std::vector<Eigen::Vector3d> local_path;
             RCLCPP_INFO(kLogger, "[Manager REPLAN] start local planning");
             local_path = localPathFinding(collision_start_point, collision_target_point);
@@ -133,7 +169,10 @@ bool planner_manager::replanFinding(const Eigen::Vector3d start_point, const Eig
                 }
             }
             else{
-                local_path.insert(local_path.end(), optimized_path.begin() + path_end_id + 1, optimized_path.end());
+                // 边界检查：确保 path_end_id + 1 不超出范围
+                if (path_end_id + 1 < static_cast<int>(optimized_path.size())) {
+                    local_path.insert(local_path.end(), optimized_path.begin() + path_end_id + 1, optimized_path.end());
+                }
                 optimized_path = astar_path_finder->smoothTopoPath(local_path);
                 local_optimize_path = local_path;
 

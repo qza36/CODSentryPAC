@@ -12,7 +12,9 @@
 #include "visualization_msgs/msg/marker.hpp"
 #include "visualization_msgs/msg/marker_array.hpp"
 #include "geometry_msgs/msg/point.hpp"
+#include "sensor_msgs/msg/point_cloud2.hpp"
 #include "trajectory_generation/TopoSearch.hpp"
+#include "trajectory_generation/GridMap.hpp"
 
 /**
  * @brief 可视化工具类
@@ -23,6 +25,7 @@
  * - 参考轨迹可视化
  * - 拓扑图可视化
  * - 当前位置/目标位置可视化
+ * - 栅格地图可视化
  */
 class Visualization
 {
@@ -54,6 +57,9 @@ public:
     // ==================== 障碍物可视化 ====================
     void visObstacles(const std::vector<std::vector<Eigen::Vector3d>>& obs);
 
+    // ==================== 地图可视化 ====================
+    void visGridMap(const std::shared_ptr<GlobalMap>& global_map);
+
 private:
     rclcpp::Node::SharedPtr node_;
     std::string frame_id_ = "world";
@@ -72,6 +78,7 @@ private:
     rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr topo_path_point_pub_;
     rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr topo_path_pub_;
     rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr obs_pub_;
+    rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr grid_map_pub_;
 
     // 辅助函数
     visualization_msgs::msg::Marker createMarker(

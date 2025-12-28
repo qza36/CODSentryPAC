@@ -3,6 +3,7 @@
 
 void AstarPathFinder::initGridMap(rclcpp::Node::SharedPtr nh, std::shared_ptr<GlobalMap> &_global_map) {
     global_map = _global_map;
+    node_ = nh;  // stash node for logging
     grid_map_vis_pub = nh->create_publisher<sensor_msgs::msg::PointCloud2>("grid_map_vis",1);
     local_grid_map_vis_pub = nh->create_publisher<sensor_msgs::msg::PointCloud2>("local_grid_map_vis",1);
 }
@@ -21,8 +22,8 @@ void AstarPathFinder::getCurPositionIndex(std::vector<Eigen::Vector3d> optimized
         double deta_x = (optimized_path[i+1].x() - optimized_path[i].x()) / n;
         double deta_y = (optimized_path[i+1].y() - optimized_path[i].y()) / n;
         for (int j = 1; j < n; j++){
-            double temp_x = optimized_path[i].x() + deta_x * i;
-            double temp_y = optimized_path[i].y() + deta_y * i;
+            double temp_x = optimized_path[i].x() + deta_x * j;
+            double temp_y = optimized_path[i].y() + deta_y * j;
             double temp_z = 0;
             Eigen::Vector3d tempPos = {temp_x, temp_y, temp_z};
             double dis = sqrt(pow((cur_pos.x() - tempPos.x()), 2) + pow((cur_pos.y() - tempPos.y()), 2));
@@ -36,9 +37,12 @@ void AstarPathFinder::getCurPositionIndex(std::vector<Eigen::Vector3d> optimized
 bool AstarPathFinder::checkPathCollision(std::vector<Eigen::Vector3d> optimized_path, Eigen::Vector3d &collision_pos, Eigen::Vector3d cur_pos,
                                          Eigen::Vector3d &collision_start_point, Eigen::Vector3d &collision_target_point, int &path_start_id, int &path_end_id)
 {
+    static const rclcpp::Logger logger = rclcpp::get_logger("trajectory_generation.astar");
     /**
      * @brief	检查路径是否与障碍物碰撞，并返回碰撞点坐标  0对应起点
      */
+    path_start_id = -1;
+    path_end_id = -1;
     int cur_start_id = 0;
     getCurPositionIndex(optimized_path, cur_pos, cur_start_id);
     int path_start_count = cur_start_id;
@@ -66,19 +70,24 @@ bool AstarPathFinder::checkPathCollision(std::vector<Eigen::Vector3d> optimized_
             if (global_map->isOccupied(tempID, false))
             {
                 collision_pos = tempPos;
-                RCLCPP_INFO(node_->get_logger(),"[A Star] find collision pos: %f %f", collision_pos.x(), collision_pos.y());
+                RCLCPP_INFO(logger,"[A Star] find collision pos: %f %f", collision_pos.x(), collision_pos.y());
                 collision_start_point = cur_pos;  // 碰撞路段起点
                 path_start_id = cur_start_id;
                 while(i<optimized_path.size() - 1){
                     i++;
                     tailPos = optimized_path[i];
-                    RCLCPP_INFO(node_->get_logger(),"[A Star] find start pos: %f %f", headPos.x(), headPos.y());
+                    RCLCPP_INFO(logger,"[A Star] find start pos: %f %f", headPos.x(), headPos.y());
                     Eigen::Vector3i headtempID = global_map->coord2gridIndex(tailPos);
                     if(global_map->isFree(headtempID)){
                         collision_target_point = tailPos;  // 碰撞路段终点
                         path_end_id = i;
                         break;
                     }
+                }
+                if (path_end_id < 0) {
+                    // fallback to last point if no free cell found along the tail
+                    collision_target_point = optimized_path.back();
+                    path_end_id = static_cast<int>(optimized_path.size()) - 1;
                 }
                 return true;
             }

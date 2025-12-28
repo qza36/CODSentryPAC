@@ -13,6 +13,19 @@ Visualization Manager:
         Value: Lines
       Plane Cell Count: 100
 
+    - Class: rviz_default_plugins/PointCloud2
+      Name: GridMap
+      Topic:
+        Value: /grid_map_vis
+        Depth: 1
+        Durability Policy: Transient Local
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+      Enabled: true
+      Size (m): 0.1
+      Color Transformer: FlatColor
+      Color: 100; 100; 100
+
     - Class: rviz_default_plugins/Marker
       Name: FinalPath
       Topic:
@@ -43,6 +56,18 @@ Visualization Manager:
         Value: /target_vis
       Value: true
 
+    - Class: rviz_default_plugins/Marker
+      Name: TopoGuard
+      Topic:
+        Value: /topo_guard_vis
+      Value: true
+
+    - Class: rviz_default_plugins/Marker
+      Name: TopoConnection
+      Topic:
+        Value: /topo_connection_vis
+      Value: true
+
   Global Options:
     Fixed Frame: world
   Tools:
@@ -56,8 +81,8 @@ Visualization Manager:
       Class: rviz_default_plugins/TopDownOrtho
       Name: TopDownOrtho
       Scale: 20
-      X: 0
-      Y: 0
+      X: 15
+      Y: 8
 Window Geometry:
   Width: 1200
   Height: 800
