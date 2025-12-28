@@ -17,8 +17,8 @@ find_package(nav_msgs REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(gazebo_msgs REQUIRED)
 find_package(std_msgs REQUIRED)
-find_package(sensor_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
+find_package(visualization_msgs REQUIRED)
 
 add_executable(trajectory_generation src/trajectory_generator_node.cpp
         src/Astar_searcher.cpp
@@ -28,6 +28,7 @@ add_executable(trajectory_generation src/trajectory_generator_node.cpp
         src/plannerManager.cpp
         src/reference_path.cpp
         src/path_smooth.cpp
+        src/visualization_utils.cpp
 )
 
 ament_target_dependencies(trajectory_generation
@@ -40,6 +41,7 @@ ament_target_dependencies(trajectory_generation
         gazebo_msgs
         pcl_conversions
         geometry_msgs
+        visualization_msgs
 )
 target_include_directories(trajectory_generation
         PRIVATE
