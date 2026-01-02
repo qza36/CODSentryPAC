@@ -1,4 +1,5 @@
 #include "trajectory_generation/TopoSearch.hpp"
+#include <queue>
 //
 // Created by zzt on 23-10-22.
 //
@@ -283,73 +284,51 @@ std::vector<std::vector<Eigen::Vector3d>> TopoSearcher::searchPaths(int node_id)
 
 void TopoSearcher::DijkstraSearch(int node_id){
     min_path.clear();
-    std::vector<double> minDist(m_graph.size() + 1, 100000.0);
-
-    std::vector<bool> visited(m_graph.size() + 1, false);
+    const size_t n = m_graph.size();
+    std::vector<double> minDist(n + 1, 1e9);
+    std::vector<bool> visited(n + 1, false);
     Eigen::Vector3d temp = {0,0,0};
-    std::vector<std::pair<int, Eigen::Vector3d>> parent (m_graph.size() + 1, std::make_pair(-1, temp));
+    std::vector<std::pair<int, Eigen::Vector3d>> parent(n + 1, std::make_pair(-1, temp));
+
+    // 优先队列: (距离, 节点id)
+    std::priority_queue<std::pair<double, int>, std::vector<std::pair<double, int>>, std::greater<>> pq;
 
     minDist[0] = 0;
-    for (int i = 0; i < m_graph.size(); i++) { // 遍历所有节点
-        int minVal = 100000.0;
-        int cur_id = -1;
-        int index = -1;
-        Eigen::Vector3d temp_point;
+    pq.push({0.0, 0});
 
-        // 找距离源点最近(minDist最小)的id点
-        for(int j = 0; j<m_graph.size(); j++){
-            if(!visited[j] && minDist[j] < minVal){
-                minVal = minDist[j];
-                cur_id = j;
-                temp_point = m_graph[j]->pos;
-            }
-        }
+    while (!pq.empty()) {
+        auto [dist, cur_id] = pq.top();
+        pq.pop();
 
-        if(i == 0 && cur_id < 0){
-            if(m_graph[0]->neighbors.size() > 0){
-                cur_id = 0;
-                index = 0;
-                temp_point = m_graph[i]->pos;
-            }else{
-                RCLCPP_ERROR(node_->get_logger(),"[topo search] no path, no point connect to start point");
-                return;
-            }
-        }
-
-        if(cur_id < 0){
-            continue;
-        }
-;
+        if (visited[cur_id]) continue;
         visited[cur_id] = true;
-        for(int j = 0; j<m_graph[cur_id]->neighbors.size(); j++){
-            int id_temp = m_graph[cur_id]->neighbors[j]->m_id;
-            if(!visited[id_temp] && minDist[cur_id] + (m_graph[cur_id]->neighbors[j]->pos - temp_point).norm() < minDist[id_temp])
-            {
-                minDist[id_temp] = minDist[cur_id] + (m_graph[cur_id]->neighbors[j]->pos - temp_point).norm();
-                parent[id_temp].first = cur_id;
-                parent[id_temp].second = temp_point;
+
+        for (const auto& neighbor : m_graph[cur_id]->neighbors) {
+            int next_id = neighbor->m_id;
+            double edge_cost = (neighbor->pos - m_graph[cur_id]->pos).norm();
+            double new_dist = minDist[cur_id] + edge_cost;
+
+            if (new_dist < minDist[next_id]) {
+                minDist[next_id] = new_dist;
+                parent[next_id] = {cur_id, m_graph[cur_id]->pos};
+                pq.push({new_dist, next_id});
             }
         }
     }
 
-    int index = node_id;  // todo 这里根据终点的index进行更改变化
-    if(minDist[index] > 10000.0){
+    int index = node_id;
+    if(minDist[index] > 1e8){
         if(node_id == 1){
             RCLCPP_ERROR(node_->get_logger(),"[topo search] no path, no point connect to end point");
         }
         return;
     }
     min_path.push_back(m_graph[index]->pos);
-    while(1){
+    while(index != 0){
         min_path.push_back(parent[index].second);
         index = parent[index].first;
-        if(index == 0){
-            break;
-        }
     }
-//    std::cout<<"min_path size: "<<min_path.size()<<std::endl;
     std::reverse(min_path.begin(), min_path.end());
-
 }
 
 void TopoSearcher::depthFirstSearch(std::vector<GraphNode::Ptr>& vis)
