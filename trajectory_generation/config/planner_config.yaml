@@ -22,18 +22,20 @@ trajectory_generator:
     # Search parameters
     search_height_min: 0.0
     search_height_max: 0.5
-    search_radius: 0.2
+    search_radius: 6.0
     robot_radius: 0.3
     robot_radius_dash: 0.3
+    # Topo search parameters
+    topo_max_sample_num: 400  # 拓扑搜索最大采样数量 (减少可加速规划)
     # Dynamics parameters
-    reference_v_max: 2.0        # 最大速度 (m/s)
-    reference_a_max: 3.0        # 最大加速度 (m/s^2)
-    reference_w_max: 2.0        # 最大角速度 (rad/s)
-    reference_desire_speed: 1.5 # 期望速度 (m/s)
+    reference_v_max: 3.5        # 最大速度 (m/s)
+    reference_a_max: 10.0       # 最大加速度 (m/s^2)
+    reference_w_max: 4.0        # 最大角速度 (rad/s)
+    reference_desire_speed: 2.9 # 期望速度 (m/s)
     # FSM parameters
     fsm:
       replan_thresh: 1.0        # 重规划距离阈值 (m)
       no_replan_thresh: 1.5     # 接近终点不重规划阈值 (m)
       emergency_time: 2.0       # 紧急停止时间窗口 (s)
-      exec_timer_period: 0.05   # 主循环周期 (s)
+      exec_timer_period: 0.03   # 主循环周期 (s)
       safety_timer_period: 0.1  # 安全检查周期 (s)

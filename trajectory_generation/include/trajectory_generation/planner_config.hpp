@@ -32,6 +32,7 @@ namespace planner_manager
             double search_radius;
             double robot_radius;
             double robot_radius_dash;
+            int topo_max_sample_num = 400;  // 拓扑搜索最大采样数量
         }search;
         //动力学参数
         struct DynamicsConfig

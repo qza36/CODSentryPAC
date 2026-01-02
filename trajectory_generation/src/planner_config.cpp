@@ -84,6 +84,7 @@ void planner_manager::init(rclcpp::Node::SharedPtr node)
    apex_utils::get_param(node,"search_radius",config.search.search_radius,0.2);
    apex_utils::get_param(node,"robot_radius",config.search.robot_radius,0.3);
    apex_utils::get_param(node,"robot_radius_dash",config.search.robot_radius_dash,0.3);
+   apex_utils::get_param(node,"topo_max_sample_num",config.search.topo_max_sample_num,400);
 
    //dynamics
    apex_utils::get_param(node,"reference_v_max",config.dynamics.v_max,2.0);
@@ -135,7 +136,7 @@ void planner_manager::init(rclcpp::Node::SharedPtr node)
 
    RCLCPP_INFO(kLogger, "[Manager Init] Initializing TopoSearcher...");
    topo_prm.reset(new TopoSearcher);
-   topo_prm->init(node, global_map);
+   topo_prm->init(node, global_map, config.search.topo_max_sample_num);
 
    global_map->setRadiusDash(config.search.robot_radius_dash);
 

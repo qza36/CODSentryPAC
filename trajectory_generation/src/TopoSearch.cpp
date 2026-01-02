@@ -7,7 +7,7 @@ namespace {
 const rclcpp::Logger kLogger = rclcpp::get_logger("trajectory_generation.topo_search");
 }
 
-void TopoSearcher::init(rclcpp::Node::SharedPtr node, std::shared_ptr<GlobalMap> &_global_map)
+void TopoSearcher::init(rclcpp::Node::SharedPtr node, std::shared_ptr<GlobalMap> &_global_map, int max_sample)
 {
     // 参数校验
     if (!node) {
@@ -25,7 +25,7 @@ void TopoSearcher::init(rclcpp::Node::SharedPtr node, std::shared_ptr<GlobalMap>
     m_graph.clear();
     m_eng = std::default_random_engine(m_rd());
     m_rand_pos = std::uniform_real_distribution<double>(0.0, 1.0);
-    max_sample_num = 1000;
+    max_sample_num = max_sample;
 
     m_sample_inflate(0) = 2.0;
     m_sample_inflate(1) = 7.0;
