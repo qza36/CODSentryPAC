@@ -49,7 +49,9 @@ void ReplanFSM::init(rclcpp::Node::SharedPtr node)
     // 创建发布者
     traj_pub_ = node_->create_publisher<trajectory_generation::msg::TrajectoryPoly>("trajectory", 10);
     target_point_pub_ = node_->create_publisher<geometry_msgs::msg::Point>("target_result", 10);
-    grid_map_pub_ = node_->create_publisher<sensor_msgs::msg::PointCloud2>("grid_map_vis", 10);
+    rclcpp::QoS qos_latched(1);
+    qos_latched.transient_local();
+    grid_map_pub_ = node_->create_publisher<sensor_msgs::msg::PointCloud2>("grid_map_vis", qos_latched);
 
     // 创建定时器
     exec_timer_ = node_->create_wall_timer(

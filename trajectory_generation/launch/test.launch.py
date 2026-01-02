@@ -14,7 +14,7 @@ def generate_launch_description():
             package='trajectory_generation',
             executable='fake_odom_node',
             name='fake_odom',
-            parameters=[{'x': 0.0, 'y': 0.0}],
+            parameters=[{'x': 5.0, 'y': 8.0}],
             output='screen'
         ),
         # 轨迹生成节点

@@ -4,8 +4,10 @@
 void AstarPathFinder::initGridMap(rclcpp::Node::SharedPtr nh, std::shared_ptr<GlobalMap> &_global_map) {
     global_map = _global_map;
     node_ = nh;  // stash node for logging
-    grid_map_vis_pub = nh->create_publisher<sensor_msgs::msg::PointCloud2>("grid_map_vis",1);
-    local_grid_map_vis_pub = nh->create_publisher<sensor_msgs::msg::PointCloud2>("local_grid_map_vis",1);
+    rclcpp::QoS qos_latched(1);
+    qos_latched.transient_local();
+    grid_map_vis_pub = nh->create_publisher<sensor_msgs::msg::PointCloud2>("grid_map_vis", qos_latched);
+    local_grid_map_vis_pub = nh->create_publisher<sensor_msgs::msg::PointCloud2>("local_grid_map_vis", qos_latched);
 }
 
 Eigen::Vector3d AstarPathFinder::coordRounding(const Eigen::Vector3d &coord) {
