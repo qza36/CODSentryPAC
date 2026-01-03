@@ -36,12 +36,14 @@ struct GridNode
 
     GridNode(Eigen::Vector3i _index, Eigen::Vector3d _coord) {
         id = 0;
+        height = 0.0;  // 默认高度为0（平面）
         index = _index;
         coord = _coord;
         dir = Eigen::Vector3i::Zero();
         gScore = inf;
         fScore = inf;
         cameFrom = NULL;
+        exist_second_height = false;
     }
 
     GridNode(int _X, int _Y, int _Z) {
@@ -62,7 +64,15 @@ struct GridNode
                ((node.index(0) == index(0)) && (node.index(1) < index(1)));
     }
 
-    GridNode() {};
+    GridNode() {
+        id = 0;
+        height = 0.0;
+        dir = Eigen::Vector3i::Zero();
+        gScore = inf;
+        fScore = inf;
+        cameFrom = NULL;
+        exist_second_height = false;
+    };
     ~GridNode() {};
 };
 

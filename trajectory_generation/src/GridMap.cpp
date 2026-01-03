@@ -40,6 +40,9 @@ void GlobalMap::initGridMap(
 
     m_robot_radius=config.search.robot_radius;
     m_robot_radius_dash=config.search.robot_radius_dash;
+    m_search_radius=config.search.search_radius;
+    m_height_threshold=config.map.height_threshold;
+    m_height_sencond_high_threshold=config.map.height_sencond_high_threshold;
 
     std::string occ_map_file = config.map.occ_map_path;
     std::string distance_map_file = config.map.distance_map_path;
@@ -129,9 +132,13 @@ void GlobalMap::occMap2Obs(const cv::Mat &occ_map) {
 }
 void GlobalMap::topoSampleMap(cv::Mat &topo_map) {
     RCLCPP_INFO(m_node->get_logger(),"start topo sample map");
+    if(topo_map.empty()) {
+        RCLCPP_WARN(m_node->get_logger(),"[GridMap] topo_map is empty, skip topo sample");
+        return;
+    }
     Eigen::Vector3d topoMapTemp;
-    for(int i = 0; i < topo_map.rows; i++){
-        for(int j = 0; j < topo_map.cols; j++){
+    for(int i = 1; i < topo_map.rows - 1; i++){  // 边界安全：从1开始，到rows-2结束
+        for(int j = 1; j < topo_map.cols - 1; j++){  // 边界安全：从1开始，到cols-2结束
             if(topo_map.at<uchar>(i, j) > 10){
                 topoMapTemp.x() = (j + 0.5) * m_resolution;
                 topoMapTemp.y() = (topo_map.rows - i - 0.5) * m_resolution;
@@ -140,6 +147,7 @@ void GlobalMap::topoSampleMap(cv::Mat &topo_map) {
                 int keypoint = 0;
                 for(int idx = -1; idx < 2; idx++){
                     for(int idy = -1; idy < 2; idy++){
+                        // 边界检查已通过外层循环保证
                         if(topo_map.at<uchar>(i + idx, j + idy) > 100){
                             keypoint ++ ;
                         }
@@ -158,6 +166,7 @@ void GlobalMap::topoSampleMap(cv::Mat &topo_map) {
 
                     for(int idx = -1; idx < 2; idx++){
                         for(int idy = -1; idy < 2; idy++){
+                            // 边界检查已通过外层循环保证
                             topo_map.at<uchar>(i + idx, j + idy) = 0;
                         }
                     }
