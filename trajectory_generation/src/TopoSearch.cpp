@@ -531,8 +531,14 @@ Eigen::Vector3d TopoSearcher::getLocalSample()
     Eigen::Vector3d pt;
     Eigen::Vector3d pt_inv;
 
+    // 空数据检查
+    if(global_map->topo_sample_map.empty()) {
+        pt.setZero();
+        return pt;
+    }
+
     for(int i = 0; i < 10 ; i++){
-        int index = int(m_rand_pos(m_eng) * global_map->topo_sample_map.size());
+        int index = int(m_rand_pos(m_eng) * (global_map->topo_sample_map.size() - 1));
         pt = global_map->topo_sample_map[index];
         pt_inv = m_rotation_inv * (pt - m_translation);
         if(abs(pt_inv(0)) < m_sample_r(0) && abs(pt_inv(1)) < m_sample_r(1)){
