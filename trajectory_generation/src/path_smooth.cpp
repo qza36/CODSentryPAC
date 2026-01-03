@@ -84,15 +84,6 @@ double Smoother::costFunction(void *ptr, const Eigen::VectorXd &x, Eigen::Vector
     }
     instance->cubSpline.setInnerPoints(inPs, inTimes);
 
-    if(!instance->init_obs) {
-        for (int i = 0; i < points_num; ++i) {
-            double nearest_cost = 0.0;
-            Eigen::Vector2d x_cur = inPs.col(i);
-            Eigen::Vector2d obstacleGrad = instance->obstacleTerm(i, x_cur, nearest_cost);
-        }
-    }
-    instance->init_obs = true;
-
     /// 整个优化过程最最最耗时的地方
     double energy;
     Eigen::Matrix2Xd energy_grad;
@@ -144,11 +135,7 @@ void Smoother::pathSample(std::vector<Eigen::Vector3d>& global_path, Eigen::Vect
         return;
     }
 
-//    if(start_vel.norm() > 1.0){  // 小trick
-//        step = 0.3;
-//    }
-
-    for (int i = 0;i<global_path.size() - 1;i++)
+    for (size_t i = 0; i < global_path.size() - 1; i++)
     {
         Eigen::Vector2d start(global_path[i].x(), global_path[i].y());
         Eigen::Vector2d end(global_path[i+1].x(), global_path[i+1].y());
@@ -160,15 +147,33 @@ void Smoother::pathSample(std::vector<Eigen::Vector3d>& global_path, Eigen::Vect
         }
         /// 将上一段路径残留的部分放进去
         Eigen::Vector2d start_new;
-        if(path_distance>=(step - last_dis)){
+        if(path_distance >= (step - last_dis)){
             start_new.x() = start.x() + start2end.x() * (step - last_dis)/path_distance;
             start_new.y() = start.y() + start2end.y() * (step - last_dis)/path_distance;
-//            trajectory_point.push_back(start_new);
             step = 0.3;  // 无论速度多大我们只调整第一段的长度，push_back后直接回归低采样
         }
-        else  /// 这段路径太短了，加上last_dis还没有采样步长长，因此直接加到dis_last中
+        else  /// 这段路径太短了，加上last_dis还没有采样步长长
         {
-            last_dis = last_dis + path_distance;  /// TODO 这种处理方式有个问题，容易把角点扔掉，不保证安全性
+            // 修复：保留角点，避免切角导致碰撞
+            // 如果这是一个拐角（方向变化大），则保留该点
+            if(i > 0 && i < global_path.size() - 1) {
+                Eigen::Vector2d prev_dir(global_path[i].x() - global_path[i-1].x(),
+                                         global_path[i].y() - global_path[i-1].y());
+                Eigen::Vector2d next_dir(global_path[i+1].x() - global_path[i].x(),
+                                         global_path[i+1].y() - global_path[i].y());
+                double prev_norm = prev_dir.norm();
+                double next_norm = next_dir.norm();
+                if(prev_norm > 1e-6 && next_norm > 1e-6) {
+                    double cos_angle = prev_dir.dot(next_dir) / (prev_norm * next_norm);
+                    // 如果角度变化超过30度，保留该角点
+                    if(cos_angle < 0.866) {  // cos(30°) ≈ 0.866
+                        trajectory_point.push_back(start);
+                        last_dis = 0.0;
+                        continue;
+                    }
+                }
+            }
+            last_dis = last_dis + path_distance;
             continue;
         }
 
@@ -181,7 +186,7 @@ void Smoother::pathSample(std::vector<Eigen::Vector3d>& global_path, Eigen::Vect
             continue;
         }
 
-        for (int j = 0;j<=sample_num; j++){
+        for (int j = 0; j <= sample_num; j++){
             Eigen::Vector2d sample_point(start_new.x() + new_start2end.x() * step/path_distance_new * j,
                             start_new.y() + new_start2end.y() * step/path_distance_new * j);
             trajectory_point.push_back(sample_point);
@@ -207,9 +212,16 @@ void Smoother::getGuidePath(Eigen::Vector2d start_vel, double radius){
     Eigen::Vector2d start_point = path[0];
     direction = direction / direction.norm();
 
-    double theta = acos((start_vel.x() * direction.x() + start_vel.y() * direction.y()) / (direction.norm() * start_vel.norm()));
+    // 零速度防护：当速度接近零时，直接设置init_vel为false
+    double vel_norm = start_vel.norm();
+    if(vel_norm < 1e-6){
+        init_vel = false;
+        return;
+    }
 
-    if(theta < M_PI_2 * 4/3 && start_vel.norm() > 0.2){
+    double theta = acos(std::clamp((start_vel.x() * direction.x() + start_vel.y() * direction.y()) / (direction.norm() * vel_norm), -1.0, 1.0));
+
+    if(theta < M_PI_2 * 4/3 && vel_norm > 0.2){
         init_vel = true;
     }else{
         init_vel = false;
@@ -237,7 +249,7 @@ void Smoother::smoothPath()
     obs_coord.clear();
 
     double minCost = 0.0;
-    lbfgs_params.mem_size = 64;  // 32
+    lbfgs_params.mem_size = 32;  // 32
     lbfgs_params.past = 5;
     lbfgs_params.min_step = 1.0e-32;
     lbfgs_params.g_epsilon = 2.0e-5;
@@ -305,7 +317,7 @@ void Smoother::pathResample()
     if(int(path.size() -1) > step*sample_num){
         trajectory_point.push_back((path.back()));
     }
-    finalpath.assign(path.begin(), path.end());
+    finalpath.assign(trajectory_point.begin(), trajectory_point.end());  // 修复：使用重采样后的结果
 }
 
 std::vector<Eigen::Vector2d> Smoother::getPath() /// 优化过后的最终轨迹控制点
@@ -322,50 +334,65 @@ Eigen::Vector2d Smoother::obstacleTerm(int idx, Eigen::Vector2d xcur, double &ne
     nearest_cost = 0.0;
     Eigen::Vector2d gradient(0.0, 0.0);
     double R = 0.3;  /// 防碰撞半径
-    if(!init_obs)
-    {
-        obs_coord.clear();
-        getObsEdge(xcur);
-        allobs.push_back(obs_coord);
 
-        std::vector<double> distance_temp;
-        double ddd = 0.0;
-        for(int i = 0; i < obs_coord.size(); i++)
-        {
-            double distance = std::sqrt((xcur(0) - obs_coord[i](0)) * (xcur(0) - obs_coord[i](0)) +
-                                        (xcur(1) - obs_coord[i](1)) * (xcur(1) - obs_coord[i](1)));
-            if(distance > (R * 1.2)){
-                continue;
-            }
-            distance_temp.push_back(distance);
-            ddd += distance;
-        }
+    // 每次迭代都重新获取当前位置周围的障碍物，避免障碍物集合冻结
+    std::vector<Eigen::Vector3d> current_obs;
+    getObsEdgeForPoint(xcur, current_obs);
 
-        if(!distance_temp.empty()){
-            mid_distance.push_back(ddd/distance_temp.size());   /// 均值阈值用于处理狭窄路段
-        }else{
-            mid_distance.push_back(R);
-        }
-
+    if(current_obs.empty()) {
         return gradient;
     }
 
-    int size = allobs[idx].size();
-    for(int i = 0; i < allobs[idx].size(); i++)
-    {
+    // 计算平均距离作为自适应阈值
+    double total_dist = 0.0;
+    int count = 0;
+    for(size_t i = 0; i < current_obs.size(); i++) {
+        double dist = std::sqrt((xcur(0) - current_obs[i](0)) * (xcur(0) - current_obs[i](0)) +
+                                (xcur(1) - current_obs[i](1)) * (xcur(1) - current_obs[i](1)));
+        if(dist <= R * 1.2) {
+            total_dist += dist;
+            count++;
+        }
+    }
+    double tempR = (count > 0) ? (total_dist / count) : R;
 
-        double tempR = mid_distance[idx];
-        double distance = std::sqrt((xcur(0) - allobs[idx][i](0)) * (xcur(0) - allobs[idx][i](0)) + (xcur(1) - allobs[idx][i](1)) * (xcur(1) - allobs[idx][i](1)));
+    int size = current_obs.size();
+    for(size_t i = 0; i < current_obs.size(); i++) {
+        double distance = std::sqrt((xcur(0) - current_obs[i](0)) * (xcur(0) - current_obs[i](0)) +
+                                    (xcur(1) - current_obs[i](1)) * (xcur(1) - current_obs[i](1)));
 
-        if(distance > tempR || distance < 1e-10){
+        if(distance > tempR || distance < 1e-10) {
             continue;
         }
 
-        nearest_cost += wObstacle * (tempR - distance) * (tempR - distance)  / (double)size;
-        Eigen::Vector2d obsVct(xcur.x() - allobs[idx][i](0), xcur.y() - allobs[idx][i](1));
+        nearest_cost += wObstacle * (tempR - distance) * (tempR - distance) / (double)size;
+        Eigen::Vector2d obsVct(xcur.x() - current_obs[i](0), xcur.y() - current_obs[i](1));
         gradient += wObstacle * 2 * (obsVct / distance) * (distance - tempR) / (double)size;
     }
     return gradient;
+}
+
+void Smoother::getObsEdgeForPoint(Eigen::Vector2d xcur, std::vector<Eigen::Vector3d>& obs_out)
+{
+    obs_out.clear();
+    Eigen::Vector3d start_pt;
+    start_pt(0) = xcur(0);
+    start_pt(1) = xcur(1);
+    start_pt(2) = 0.0;
+    Eigen::Vector3i start_idx = global_map->coord2gridIndex(start_pt);
+
+    for(int i = -5; i <= 5; i++) {
+        for(int j = -5; j <= 5; j++) {
+            int x_idx = std::clamp(start_idx.x() + i, 0, global_map->GLX_SIZE - 1);
+            int y_idx = std::clamp(start_idx.y() + j, 0, global_map->GLY_SIZE - 1);
+            int z_idx = start_idx.z();
+
+            if(!isFree(x_idx, y_idx, z_idx)) {
+                Eigen::Vector3i temp_idx = {x_idx, y_idx, z_idx};
+                obs_out.push_back(global_map->gridIndex2coord(temp_idx));
+            }
+        }
+    }
 }
 
 
@@ -383,13 +410,12 @@ void Smoother::getObsEdge(Eigen::Vector2d xcur)
     double start_z = 0.0;
     double R = 4.0;
 
-    for(int i = -8; i <= 8; i++) /// 这里搜索范围太小会导致一系列的问题，包括但不限于小收敛误差需求时导致的撞墙，
-        /// 因为你搜不到较远处的障碍物，但是太多了就会严重拖慢速度。
+    for(int i = -5; i <= 5; i++)
     {
-        for (int j = -8; j <=8; j ++)
+        for (int j = -5; j <= 5; j++)
         {
-            int x_idx = std::max(start_idx.x() + i, 0);
-            int y_idx = std::max(start_idx.y() + j, 0);
+            int x_idx = std::clamp(start_idx.x() + i, 0, global_map->GLX_SIZE - 1);
+            int y_idx = std::clamp(start_idx.y() + j, 0, global_map->GLY_SIZE - 1);
             int z_idx = start_idx.z();
 
             Eigen::Vector3i temp_idx = {x_idx, y_idx, z_idx};
@@ -401,7 +427,7 @@ void Smoother::getObsEdge(Eigen::Vector2d xcur)
         }
     }
 
-    for(int i = 0; i < 100; i++){   /// 搜索最近2.5m范围内的点
+    for(int i = 0; i < 50; i++){   /// 搜索最近2.5m范围内的点
         double edge_x = start_x + sin(i * M_PI / 50) * R;
         double edge_y = start_y + cos(i * M_PI / 50) * R;
         double edge_z = start_z;
@@ -419,7 +445,18 @@ void Smoother::getObsEdge(Eigen::Vector2d xcur)
 
 bool Smoother::isFree(const int &idx_x, const int &idx_y, const int &idx_z) const
 {
-    return ((global_map->data[idx_x * global_map->GLY_SIZE + idx_y] < 1 && global_map->l_data[idx_x * global_map->GLY_SIZE + idx_y] < 1));
+    // 边界检查
+    if(idx_x < 0 || idx_x >= global_map->GLX_SIZE || idx_y < 0 || idx_y >= global_map->GLY_SIZE)
+        return false;
+    // 检查全局和局部障碍物
+    if(global_map->data[idx_x * global_map->GLY_SIZE + idx_y] >= 1 ||
+       global_map->l_data[idx_x * global_map->GLY_SIZE + idx_y] >= 1)
+        return false;
+    // 检查桥洞下层占用
+    if(global_map->GridNodeMap[idx_x][idx_y]->exist_second_height &&
+       global_map->GridNodeMap[idx_x][idx_y]->second_local_occupancy)
+        return false;
+    return true;
 }
 
 bool Smoother::isFree(const Eigen::Vector3i &index) const

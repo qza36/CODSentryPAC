@@ -86,6 +86,7 @@ public:
 
     // ==================== 障碍物处理 ====================
     void getObsEdge(Eigen::Vector2d xcur);
+    void getObsEdgeForPoint(Eigen::Vector2d xcur, std::vector<Eigen::Vector3d>& obs_out);
 
     /**
      * @brief 计算障碍物排斥力
