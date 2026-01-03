@@ -74,7 +74,7 @@ install(TARGETS
         fake_odom_node
         DESTINATION lib/${PROJECT_NAME})
 
-install(DIRECTORY config launch
+install(DIRECTORY config launch map
         DESTINATION share/${PROJECT_NAME})
 
 ament_package()

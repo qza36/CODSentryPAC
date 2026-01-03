@@ -12,7 +12,7 @@ def generate_launch_description():
     return LaunchDescription([
         Node(
             package='trajectory_generation',
-            executable='trajectory_generation',
+            executable='trajectory_generation_node',
             name='trajectory_generator',
             parameters=[config],
             output='screen'
