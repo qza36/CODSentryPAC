@@ -49,9 +49,9 @@ public:
      * @param path_end_id [out] 碰撞段终点索引
      * @return true=存在碰撞
      */
-    bool checkPathCollision(std::vector<Eigen::Vector3d> optimized_path,
+    bool checkPathCollision(const std::vector<Eigen::Vector3d> &optimized_path,
                             Eigen::Vector3d &collision_pos,
-                            Eigen::Vector3d cur_pos,
+                            const Eigen::Vector3d &cur_pos,
                             Eigen::Vector3d &collision_start_point,
                             Eigen::Vector3d &collision_target_point,
                             int &path_start_id, int &path_end_id);
@@ -59,8 +59,8 @@ public:
     /**
      * @brief 获取当前位置在路径中的索引
      */
-    void getCurPositionIndex(std::vector<Eigen::Vector3d> optimized_path,
-                             Eigen::Vector3d cur_pos,
+    void getCurPositionIndex(const std::vector<Eigen::Vector3d> &optimized_path,
+                             const Eigen::Vector3d &cur_pos,
                              int &cur_start_id);
 
     /**
@@ -80,7 +80,7 @@ public:
      * @param topo_path 原始拓扑路径
      * @return 平滑后的路径
      */
-    std::vector<Eigen::Vector3d> smoothTopoPath(std::vector<Eigen::Vector3d> topo_path);
+    std::vector<Eigen::Vector3d> smoothTopoPath(const std::vector<Eigen::Vector3d> &topo_path);
 
     /**
      * @brief 寻找附近的可行点

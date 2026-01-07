@@ -14,7 +14,7 @@ Eigen::Vector3d AstarPathFinder::coordRounding(const Eigen::Vector3d &coord) {
     return global_map->gridIndex2coord(global_map->coord2gridIndex(coord));
 }
 
-void AstarPathFinder::getCurPositionIndex(std::vector<Eigen::Vector3d> optimized_path, Eigen::Vector3d cur_pos, int &cur_start_id) {
+void AstarPathFinder::getCurPositionIndex(const std::vector<Eigen::Vector3d> &optimized_path, const Eigen::Vector3d &cur_pos, int &cur_start_id) {
     cur_start_id = 0;
     double min_dis = 1000000;
     for (int i = 0; i < optimized_path.size() - 1; i++) {
@@ -36,8 +36,8 @@ void AstarPathFinder::getCurPositionIndex(std::vector<Eigen::Vector3d> optimized
         }
     }
 }
-bool AstarPathFinder::checkPathCollision(std::vector<Eigen::Vector3d> optimized_path, Eigen::Vector3d &collision_pos, Eigen::Vector3d cur_pos,
-                                         Eigen::Vector3d &collision_start_point, Eigen::Vector3d &collision_target_point, int &path_start_id, int &path_end_id)
+bool AstarPathFinder::checkPathCollision(const std::vector<Eigen::Vector3d> &optimized_path, Eigen::Vector3d &collision_pos, const Eigen::Vector3d &cur_pos,
+                                          Eigen::Vector3d &collision_start_point, Eigen::Vector3d &collision_target_point, int &path_start_id, int &path_end_id)
 {
     static const rclcpp::Logger logger = rclcpp::get_logger("trajectory_generation.astar");
     /**
@@ -99,7 +99,7 @@ bool AstarPathFinder::checkPathCollision(std::vector<Eigen::Vector3d> optimized_
     return false;
 }
 
-std::vector<Eigen::Vector3d> AstarPathFinder::smoothTopoPath(std::vector<Eigen::Vector3d> topo_path)
+std::vector<Eigen::Vector3d> AstarPathFinder::smoothTopoPath(const std::vector<Eigen::Vector3d> &topo_path)
 {
     if(topo_path.size() < 2)
     {
